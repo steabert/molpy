@@ -11,6 +11,23 @@ You can filter AOs (basis functions) by regex match and you
 can filter MOs by type or index. This makes it more convenient
 to limit viewing of orbitals from MCSCF wavefunctions.
 
+After running a Molcas calculation, a module can store wavefunction data
+in an HDF5 file. Currently these are only the `scf` and `rasscf` modules
+(or `symmetrize` if you have [libmsym](mcodev31/libmsym) support).
+The orbital data in the HDF5 file (with extension `.h5`) can be then be examined
+or converted like so:
+
+```
+# print the orbitals
+penny <filename>.h5 --print
+# filter to only print coefficients from carbon 2pz basis functions
+penny <filename>.h5 --print -m 'C.*2pz'
+# convert to Molden format
+penny <filename>.h5 --molden
+# convert to Gaussian formatted checkpoint format
+penny <filename>.h5 --fchk
+```
+
 ## Installation
 Make sure your are using Python 3!
 Molpy can be installed for the current user with
