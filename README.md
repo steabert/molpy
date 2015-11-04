@@ -13,7 +13,7 @@ to limit viewing of orbitals from MCSCF wavefunctions.
 
 After running a Molcas calculation, a module can store wavefunction data
 in an HDF5 file. Currently these are only the `scf` and `rasscf` modules
-(or `symmetrize` if you have [libmsym](mcodev31/libmsym) support).
+(or `symmetrize` if you have [libmsym](https://github.com/mcodev31/libmsym) support).
 The orbital data in the HDF5 file (with extension `.h5`) can be then be examined
 or converted like so:
 
