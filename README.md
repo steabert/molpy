@@ -21,6 +21,9 @@ or system-wide with
 ```
 python setup.py install
 ```
+With the user-specific installation, the penny program will
+end up in `~/.local/bin/penny`, so you either need to add
+`~/.local/bin/` to your path, or make a link to the script.
 
 ## Help
 Questions regarding the use of molpy together with Molcas
