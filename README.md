@@ -1,5 +1,5 @@
 # Welcome to Molpy!
-Molpy is a python3 library to make it easy to display Molcas
+Molpy is a python3 library to make it easy to display [Molcas](http://www.molcas.org)
 wavefunction data, compute properties, and convert to other formats.
 
 The library contains classes to read/write Molcas HDF5 (.h5) and INPORB (.???Orb) formats and
