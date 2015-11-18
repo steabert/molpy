@@ -126,17 +126,18 @@ def driver():
                 give another name with the -o/--outfile option
                 """)
 
-    wfn = molpy.MolcasWFN(args.infile)
-
-    if args.desymmetrize:
-        wfn.desymmetrize()
+    filename = args.infile
+    if (filename.endswith('.h5')):
+        wfn = molpy.gen_from_mh5(filename)
+    else:
+        pass
 
     base, ext = os.path.splitext(args.infile)
 
     if args.inporb:
         outpath = args.outfile or '.'.join((base, 'inporb'))
         check_outfile(outpath)
-        f = molpy.MoclasINPORB(outpath, 'w')
+        f = molpy.MolcasINPORB(outpath, 'w')
         f.write(wfn)
 
     if args.molden:
@@ -159,8 +160,7 @@ def driver():
 
     if args.print_orbitals:
         molpy.tools.print_header('Molecular Orbitals')
-        wfn.print_orbitals(ao_pattern=args.match, typeid_list=args.typeids)
-        wfn.mulliken()
+        wfn.print_orbitals()
 
 if __name__ == '__main__':
     driver()
