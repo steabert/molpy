@@ -32,39 +32,70 @@ class MolcasINPORB():
     def nbas(self):
         return self._nbas
 
-    def mo_vectors(self, nbas):
+    def mo_vectors(self, nbas, uhf):
         data_flat = self._orb
         if data_flat is not None:
-            vectors = arr_to_lst(data_flat, nbas, dim=2)
+            if not uhf:
+                rhf = arr_to_lst(data_flat, [(nb,nb) for nb in nbas])
+                vectors = (rhf, None)
+            else:
+                nbast = np.sum(nbas**2)
+                alpha = arr_to_lst(data_flat[:nbast], [(nb,nb) for nb in nbas])
+                beta = arr_to_lst(data_flat[nbast:], [(nb,nb) for nb in nbas])
+                vectors = (alpha, beta)
         else:
-            vectors = None
+            vectors = (None, None)
         return vectors
 
-    def mo_occupations(self, nbas):
+    def mo_occupations(self, nbas, uhf):
         data_flat = self._occ
         if data_flat is not None:
-            occupations = arr_to_lst(data_flat, nbas)
+            if not uhf:
+                rhf = arr_to_lst(data_flat, nbas)
+                occupations = (rhf, None)
+            else:
+                nbast = np.sum(nbas)
+                alpha = arr_to_lst(data_flat[:nbast], nbas)
+                beta = arr_to_lst(data_flat[nbast:], nbas)
+                occupations = (alpha, beta)
         else:
-            occupations = None
+            occupations = (None, None)
         return occupations
 
-    def mo_energies(self, nbas):
+    def mo_energies(self, nbas, uhf):
 
         data_flat = self._one
         if data_flat is not None:
-            energies = arr_to_lst(data_flat, nbas)
+            if not uhf:
+                rhf = arr_to_lst(data_flat, nbas)
+                energies = (rhf, None)
+            else:
+                nbast = np.sum(nbas)
+                alpha = arr_to_lst(data_flat[:nbast], nbas)
+                beta = arr_to_lst(data_flat[nbast:], nbas)
+                energies = (alpha, beta)
         else:
-            energies = None
+            energies = (None, None)
         return energies
 
-    def mo_typeindices(self, nbas):
-
+    def mo_typeindices(self, nbas, uhf):
         data_flat = self._index
         if data_flat is not None:
             typeindices = arr_to_lst(np.char.lower(data_flat), nbas)
+            if not uhf:
+                rhf = arr_to_lst(data_flat, nbas)
+                typeindices = (rhf, None)
+            else:
+                nbast = np.sum(nbas)
+                alpha = arr_to_lst(data_flat[:nbast], nbas)
+                beta = arr_to_lst(data_flat[nbast:], nbas)
+                typeindices = (alpha, beta)
         else:
-            typeindices = None
+            typeindices = (None, None)
         return typeindices
+
+    def supsym_irrep_indices(self, nbas, uhf):
+        return (None, None)
 
     def read_version(self):
         line = seek_line(self.f, '#INPORB')
@@ -228,6 +259,6 @@ class MolcasINPORB():
                 self.f.write(line + '\n')
 
 
-@export
-def open(filename, mode):
-    return MolcasINPORB(open(filename, mode))
+#@export
+#def open(filename, mode):
+#    return MolcasINPORB(open(filename, mode))

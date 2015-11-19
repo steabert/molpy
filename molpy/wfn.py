@@ -58,7 +58,8 @@ class MolcasWFN:
         self.center_coordinates = maybe_get(f, 'center_coordinates')
         self.basis_function_ids = maybe_get(f, 'basis_function_ids', self.nbas)
 
-        self.center_idx = ordered_list(self.center_labels)
+        if self.center_labels is not None:
+            self.center_idx = ordered_list(self.center_labels)
 
         # desymmetrization information
         self.natoms_all = maybe_get(f, 'natoms_all')
@@ -114,7 +115,7 @@ class MolcasWFN:
 
         if self.desym_center_charges is not None:
             self.charge = int(np.sum(self.desym_center_charges)) - self.nelec
-        else:
+        elif self.center_charges is not None:
             self.charge = int(np.sum(self.center_charges)) - self.nelec
 
         self.supsym_nsym = maybe_get(f, 'supsym_nsym')
