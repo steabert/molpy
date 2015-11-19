@@ -4,6 +4,7 @@ import numpy as np
 from collections import namedtuple
 from .tools import lst_to_arr
 from scipy import linalg as la
+from .errors import Error, DataNotAvailable
 
 typename = {
     'f': 'fro',
@@ -13,21 +14,22 @@ typename = {
     '3': 'RAS3',
     's': 'sec',
     'd': 'del',
-    '?': '?',
+    '-': 'NA',
     }
 
 angmom_name = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n']
 
 
+@export
 class BasisSet():
     def __init__(self, centers=None, charges=None, coordinates=None,
                  contracted_ids=None, primitive_ids=None, primitives=None):
         self.centers = centers
         self.charges = charges
         self.coordinates = coordinates
-        self.contracted_ids = np.array(contracted_ids)
-        self.primitive_ids = np.array(primitive_ids)
-        self.primitives = np.array(primitives)
+        self.contracted_ids = contracted_ids
+        self.primitive_ids = primitive_ids
+        self.primitives = primitives
 
         if self.contracted_ids is not None:
             center_ids = sorted(set((id[0] for id in self.contracted_ids)))
@@ -93,9 +95,9 @@ class BasisSet():
             list(self.centers),
             list(self.charges),
             list(self.coordinates),
-            list(self.contracted_ids),
-            list(self.primitive_ids),
-            list(self.primitives),
+            self.contracted_ids.copy(),
+            self.primitive_ids.copy(),
+            self.primitives.copy(),
             )
 
     def __getitem__(self, index):
@@ -103,9 +105,9 @@ class BasisSet():
             list(self.centers),
             list(self.charges),
             list(self.coordinates),
-            list(self.contracted_ids[index]),
-            list(self.primitive_ids),
-            list(self.primitives),
+            self.contracted_ids[index],
+            self.primitive_ids.copy(),
+            self.primitives.copy(),
             )
 
     @property
@@ -128,6 +130,7 @@ class BasisSet():
         return label_list
 
 
+@export
 class OrbitalSet():
     """
     Represents a set of orbitals with a common basis set, and keeps track of
@@ -142,9 +145,12 @@ class OrbitalSet():
         assert self.n_bas != 0
         assert self.n_orb != 0
 
-        if not isinstance(basis_set, BasisSet):
-            raise TypeError('please provide basis_set=<BasisSet>')
-        self.basis_set = basis_set
+        if basis_set is not None:
+            if not isinstance(basis_set, BasisSet):
+                raise TypeError('please provide basis_set=<BasisSet>')
+            self.basis_set = basis_set
+        else:
+            self.basis_set = BasisSet()
 
         if types is None:
             self.types = np.array(['u'] * self.n_bas)
@@ -153,8 +159,10 @@ class OrbitalSet():
 
         if irreps is None:
             self.irreps = np.zeros(self.n_bas)
+            self.n_irreps = 1
         else:
             self.irreps = irreps
+            self.n_irreps = len(set(irreps))
 
         if energies is None:
             self.energies = np.array([np.nan] * self.n_bas)
@@ -167,41 +175,47 @@ class OrbitalSet():
             self.occupations = occupations
 
         if indices is None:
-            self.indices = 1 + np.arange(self.n_orb)
+            if self.n_irreps > 1:
+                self.indices = np.zeros(self.n_orb, dtype=int)
+                for irrep in range(self.n_irreps):
+                    mo_set, = np.where(self.irreps == irrep)
+                    self.indices[mo_set] = 1 + np.arange(len(mo_set))
+            else:
+                self.indices = 1 + np.arange(self.n_orb)
         else:
             self.indices = indices
 
     def copy(self):
-        return OrbitalSet(
+        return self.__class__(
             self.coefficients.copy(),
-            self.basis_set.copy(),
-            self.types.copy(),
-            self.irreps.copy(),
-            self.energies.copy(),
-            self.occupations.copy(),
-            self.indices.copy(),
+            basis_set=self.basis_set.copy(),
+            types=self.types.copy(),
+            irreps=self.irreps.copy(),
+            energies=self.energies.copy(),
+            occupations=self.occupations.copy(),
+            indices=self.indices.copy(),
             )
 
     def __getitem__(self, index):
-        return OrbitalSet(
+        return self.__class__(
             self.coefficients[:,index],
-            self.basis_set.copy(),
-            self.types[index],
-            self.irreps[index],
-            self.energies[index],
-            self.occupations[index],
-            self.indices[index],
+            basis_set=self.basis_set.copy(),
+            types=self.types[index],
+            irreps=self.irreps[index],
+            energies=self.energies[index],
+            occupations=self.occupations[index],
+            indices=self.indices[index],
             )
 
     def filter_basis(self, index):
-        return OrbitalSet(
+        return self.__class__(
             self.coefficients[index,:],
-            self.basis_set[index],
-            self.types.copy(),
-            self.irreps.copy(),
-            self.energies.copy(),
-            self.occupations.copy(),
-            self.indices.copy(),
+            basis_set=self.basis_set[index],
+            types=self.types.copy(),
+            irreps=self.irreps.copy(),
+            energies=self.energies.copy(),
+            occupations=self.occupations.copy(),
+            indices=self.indices.copy(),
             )
 
     def __str__(self):
@@ -216,7 +230,7 @@ class OrbitalSet():
         float_template = prefix + self.n_orb * '{:10.4f}' + '\n'
         str_template = prefix + self.n_orb * '{:>10s}' + '\n'
 
-        line = int_template.format("", *self.indices)
+        line = str_template.format("MO ID", *[str(t) for t in zip(self.irreps, self.indices)])
         lines.append(line)
 
         line = float_template.format('Occupation', *self.occupations)
@@ -233,39 +247,110 @@ class OrbitalSet():
         except AttributeError:
             labels = np.arange(self.n_bas).astype('U')
 
+        lines.append('\n')
+
         for ibas in range(self.n_bas):
             line = float_template.format(labels[ibas], *np.ravel(self.coefficients[ibas,:]))
             lines.append(line)
 
         return ''.join(lines)
 
-    def show(self, cols=10, sort_by_irrep=False):
+    def show(self, cols=10):
         """
         prints the entire orbital set in blocks of cols orbitals
         """
-        if sort_by_irrep:
-            pass
 
         for offset in range(0, self.n_orb, cols):
             orbitals = self[offset:offset+cols]
             print(orbitals)
 
+    def show_by_irrep(self, cols=10):
 
+        if self.n_irreps > 1:
+            for irrep in range(self.n_irreps):
+                print('symmetry {:d}'.format(irrep))
+                print()
+                indices, = np.where(self.irreps == irrep)
+                self[indices].sorted().show(cols=cols)
+        else:
+            self.show(cols=cols)
+
+    def sorted(self, reindex=False):
+        """
+        returns a new orbitals set sorted first by typeid, then by
+        increasing energy, and finally by decreasing occupation.
+        """
+
+        index = np.lexsort((self.energies, -self.occupations))
+
+        if reindex:
+            indices = None
+        else:
+            indices = self.indices[index]
+
+        return self.__class__(
+            self.coefficients[:,index],
+            basis_set=self.basis_set.copy(),
+            types=self.types[index],
+            irreps=self.irreps[index],
+            energies=self.energies[index],
+            occupations=self.occupations[index],
+            indices=indices,
+            )
+
+    def type(self, *typeids):
+        """
+        returns a new orbital set with only the requested type ids.
+        """
+
+        mo_indices = []
+        for typeid in typeids:
+            mo_set, = np.where(self.types == typeid)
+            mo_indices.extend(mo_set)
+
+        return self[mo_indices]
+
+    def erange(self, lo, hi):
+        """
+        returns a new orbital set with orbitals that have an energy
+        between lo and hi.
+        """
+
+        return self[(self.energies > lo) & (self.energies < hi)]
+
+
+@export
 class Wavefunction():
-    def __init__(self, orbitals=None, salcs=None):
-        self.type = type
+    def __init__(self, orbitals=None, salcs=None, overlap=None, density=None):
         try:
-            self.alpha, self.beta = orbitals
-            self.restricted = False
+            self.mos_alpha, self.mos_beta = orbitals
+            self.uhf = True
         except:
-            self.alpha = orbitals
-            self.beta = self.alpha
-            self.restricted = True
+            self.mos_restricted = orbitals
+            self.uhf = False
         self.salcs = salcs
 
-    def print_orbitals(self):
-        if self.restricted:
-            self.alpha.show()
+    def print_orbitals(self, by_irrep=True, types=None, erange=None, kind='restricted'):
+
+        if kind == 'restricted':
+            orbitals = self.mos_restricted
+        elif kind == 'alpha':
+            orbitals = self.mos_alpha
+        elif kind == 'beta':
+            orbitals = self.mos_beta
+        else:
+            raise Error('invalid orbital kind parameter')
+
+        if types is not None:
+            orbitals = orbitals.type(*types)
+
+        if erange is not None:
+            orbitals = orbitals.erange(*erange)
+
+        if by_irrep:
+            orbitals.show_by_irrep()
+        else:
+            orbitals.show()
 
 @export
 def gen_from_mh5(filename):
@@ -308,10 +393,7 @@ def gen_from_mh5(filename):
         irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
         mo_irreps = lst_to_arr(irrep_list)
     else:
-        try:
-            mo_irreps = f.supsym_irreps_indices()
-        except DataNotAvailable:
-            mo_irreps = numpy.zeros(sum(n_bas))
+        mo_irreps = lst_to_arr(f.supsym_irrep_indices())
 
     unrestricted = f.unrestricted()
     if unrestricted:

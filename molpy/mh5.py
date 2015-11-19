@@ -81,13 +81,7 @@ class MolcasHDF5:
 
     def basis_function_ids(self):
 
-        data = self.maybe_fetch_dset('BASIS_FUNCTION_IDS')
-        if data is not None:
-            ids = arr_to_lst(data.flatten(), [(4,nb) for nb in self.n_bas])
-            ids = [arr.T for arr in ids]
-        else:
-            ids = None
-        return ids
+        return self.maybe_fetch_dset('BASIS_FUNCTION_IDS')
 
     def natoms_all(self):
         return self.maybe_fetch_attr('NATOMS_ALL')
@@ -271,27 +265,21 @@ class MolcasHDF5:
 
     def supsym_irrep_indices(self):
 
-        data_flat = self.maybe_fetch_dset('SUPSYM_IRREP_INDICES')
-        if data_flat is not None:
-            if not self.uhf:
-                rhf = arr_to_lst(data_flat, self.n_bas)
-                indices = (rhf, None)
-            else:
-                self.n_bast = np.sum(self.n_bas)
-                alpha = arr_to_lst(data_flat[:self.n_bast], self.n_bas)
-                beta = arr_to_lst(data_flat[self.n_bast:], self.n_bas)
-                indices = (alpha, beta)
-        else:
-            indices = (None, None)
-        return indices
+        try:
+            indices = self.maybe_fetch_dset('SUPSYM_IRREP_INDICES')
+        except DataNotAvailable:
+            indices = np.empty(sum(self.n_bas**2), dtype=float64)
+            indices.fill(np.nan)
+        return arr_to_lst(indices, self.n_bas)
 
     def supsym_irrep_labels(self):
-        data_bytes = self.maybe_fetch_dset('SUPSYM_IRREP_LABELS')
-        if data_bytes is not None:
+
+        try:
+            labels = self.maybe_fetch_dset('SUPSYM_IRREP_LABELS')
             labels = np.array(list(data_bytes), dtype='U')
-        else:
-            labels = None
-        return labels
+        except DataNotAvailable:
+            labels = np.array(['-']*sum(self.n_bas), dtype='U')
+        return arr_to_lst(labels, self.n_bas)
 
     def write(self, wfn):
         self.h5f.attrs['NSYM'] = wfn.nsym

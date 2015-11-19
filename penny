@@ -160,7 +160,7 @@ def driver():
 
     if args.print_orbitals:
         molpy.tools.print_header('Molecular Orbitals')
-        wfn.print_orbitals()
+        wfn.print_orbitals(types=args.typeids)
 
 if __name__ == '__main__':
     driver()
