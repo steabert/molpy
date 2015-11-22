@@ -5,6 +5,7 @@ from collections import namedtuple
 from .tools import lst_to_arr, argsort
 from scipy import linalg as la
 from .errors import Error, DataNotAvailable
+import re
 
 typename = {
     'f': 'fro',
@@ -191,9 +192,9 @@ class BasisSet():
             ids = np.arange(self.n_cgto)
 
         if order == 'molcas':
-            return self.cgto_molcas_indices[ids]
+            return np.argsort(self.cgto_molcas_indices[ids])
         elif order == 'molden':
-            return self.cgto_molden_indices[ids]
+            return np.argsort(self.cgto_molden_indices[ids])
         else:
             raise Error('invalid order parameter')
 
@@ -399,6 +400,15 @@ class OrbitalSet():
 
         return self[(self.energies > lo) & (self.energies < hi)]
 
+    def pattern(self, regex):
+        """
+        returns a new orbital set where the basis functions have been
+        filtered as those which labels are matching the supplied regex.
+        """
+        matching = [bool(re.search(regex, label)) for label in self.basis_set.labels]
+
+        return self.filter_basis(np.asarray(matching))
+
 
 @export
 class Wavefunction():
@@ -411,7 +421,7 @@ class Wavefunction():
             self.uhf = False
         self.salcs = salcs
 
-    def print_orbitals(self, by_irrep=True, types=None, erange=None,
+    def print_orbitals(self, by_irrep=True, types=None, erange=None, pattern=None,
                        kind='restricted', order='molcas'):
 
         if kind == 'restricted':
@@ -428,6 +438,9 @@ class Wavefunction():
 
         if erange is not None:
             orbitals = orbitals.erange(*erange)
+
+        if pattern is not None:
+            orbitals = orbitals.pattern(pattern)
 
         orbitals = orbitals.sort_basis(order=order)
 

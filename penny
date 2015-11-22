@@ -84,7 +84,7 @@ def argument_parser():
         '-m',
         '--match',
         type=str,
-        help='only print AOs with matching basis label'
+        help='only print basis functions with matching label'
         )
     parser.add_argument(
         '-t',
@@ -160,7 +160,7 @@ def driver():
 
     if args.print_orbitals:
         molpy.tools.print_header('Molecular Orbitals')
-        wfn.print_orbitals(types=args.typeids)
+        wfn.print_orbitals(types=args.typeids, pattern=args.match)
 
 if __name__ == '__main__':
     driver()
