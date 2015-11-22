@@ -2,7 +2,7 @@ from . import export
 from . import mh5
 import numpy as np
 from collections import namedtuple
-from .tools import lst_to_arr
+from .tools import lst_to_arr, argsort
 from scipy import linalg as la
 from .errors import Error, DataNotAvailable
 
@@ -22,79 +22,85 @@ angmom_name = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n']
 
 @export
 class BasisSet():
-    def __init__(self, centers=None, charges=None, coordinates=None,
-                 contracted_ids=None, primitive_ids=None, primitives=None):
-        self.centers = centers
-        self.charges = charges
-        self.coordinates = coordinates
+    """
+    The BasisSet class groups data ragarding centers (their position and charge),
+    and contains a array of contracted and primitive basis function IDs.
+    """
+    def __init__(self, center_labels, center_charges, center_coordinates,
+                 contracted_ids, primitive_ids, primitives):
+        self.center_labels = np.asarray(center_labels)
+        self.center_charges = np.asarray(center_charges)
+        self.center_coordinates = np.asarray(center_coordinates)
         self.contracted_ids = contracted_ids
         self.primitive_ids = primitive_ids
         self.primitives = primitives
 
         if self.contracted_ids is not None:
             center_ids = sorted(set((id[0] for id in self.contracted_ids)))
-            assert len(self.centers) == len(center_ids)
+            assert len(self.center_labels) == len(center_ids)
             # assert center_ids[0] == 0
             # assert center_ids[-1] == len(self.centers) - 1
 
-        self._build_primitive_hierarchy()
+        self.n_cgto = self.contracted_ids.shape[0]
+        self.n_pgto = self.primitive_ids.shape[0]
 
-    def _build_primitive_hierarchy(self):
+        self.cgto_molcas_indices = argsort(self._idtuples_ladder_order)
+        self.cgto_molden_indices = argsort(self._idtuples_updown_order)
+
+    @property
+    def primitive_tree(self):
         """
-        generate a primitives hierarchy as a nested list of centers, angular momenta,
-        and shells, where each shell is a dict of exponents and coefficients
+        Generate a primitives hierarchy as a nested list of centers, angular momenta,
+        and shells, where each shell is a dict of exponents and coefficients.
+
+        Example code for printing the tree 'centers':
+
         """
 
         if self.primitive_ids is None or self.primitives is None:
-            self.primitive_tree = None
-            return
+            return None
 
-        self.primitive_tree = []
+        centers = []
 
         center_ids = self.primitive_ids[:,0]
-        centers = np.unique(center_ids)
-        for center in centers:
-            index_center, = np.where(center_ids == center)
-            primitive_ids_center = self.primitive_ids[index_center,:]
-            prims_center = self.primitives[index_center,:]
+        angmom_ids = self.primitive_ids[:,1]
+        shell_ids = self.primitive_ids[:,2]
 
-            primitive_tree_center = {}
-            primitive_tree_center['id'] = center
-            primitive_tree_center['angmoms'] = []
+        for center_id in np.unique(center_ids):
+            center_selection = (center_ids == center_id)
 
-            angmom_ids = primitive_ids_center[:,1]
-            angmoms = np.unique(angmom_ids)
-            for angmom in angmoms:
-                index_angmom, = np.where(angmom_ids == angmom)
-                primitive_ids_angmom = primitive_ids_center[index_angmom,:]
-                prims_angmom = prims_center[index_angmom,:]
+            center = {}
+            center['id'] = center_id
+            center['label'] = self.center_labels[center_id]
+            center['angmoms'] = []
 
-                primitive_tree_angmom = {}
-                primitive_tree_angmom['value'] = angmom
-                primitive_tree_angmom['shells'] = []
+            for angmom_id in np.unique(angmom_ids):
+                angmom_selection = center_selection & (angmom_ids == angmom_id)
 
-                shell_ids = primitive_ids_angmom[:,2]
-                shells = np.unique(shell_ids)
-                for shell in shells:
-                    index_shell, = np.where(shell_ids == shell)
+                angmom = {}
+                angmom['value'] = angmom_id
+                angmom['shells'] = []
 
-                    primitive_tree_shell = {}
-                    primitive_tree_shell['id'] = shell
-                    primitive_tree_shell['exponents'] = prims_angmom[index_shell,0]
-                    primitive_tree_shell['coefficients'] = prims_angmom[index_shell,1]
+                for shell_id in np.unique(shell_ids):
+                    shell_selection = angmom_selection & (shell_ids == shell_id)
 
-                    primitive_tree_angmom['shells'].append(primitive_tree_shell)
+                    shell = {}
+                    shell['id'] = shell_id
+                    shell['exponents'] = primitives[shell_selection,0]
+                    shell['coefficients'] = primitives[shell_selection,1]
 
-                primitive_tree_center['angmoms'].append(primitive_tree_angmom)
+                    angmom['shells'].append(shell)
 
-            self.primitive_tree.append(primitive_tree_center)
-        return
+                center['angmoms'].append(angmom)
+
+            centers.append(center)
+        return centers
 
     def copy(self):
         return BasisSet(
-            list(self.centers),
-            list(self.charges),
-            list(self.coordinates),
+            self.center_labels.copy(),
+            self.center_charges.copy(),
+            self.center_coordinates.copy(),
             self.contracted_ids.copy(),
             self.primitive_ids.copy(),
             self.primitives.copy(),
@@ -102,13 +108,27 @@ class BasisSet():
 
     def __getitem__(self, index):
         return BasisSet(
-            list(self.centers),
-            list(self.charges),
-            list(self.coordinates),
+            self.center_labels.copy(),
+            self.center_charges.copy(),
+            self.center_coordinates.copy(),
             self.contracted_ids[index],
             self.primitive_ids.copy(),
             self.primitives.copy(),
             )
+
+    def __str__(self):
+        lines = []
+        for center in self.primitive_tree:
+            lines.append('center {:d} ({:s}):'.format(center['id'], center['label']))
+            for angmom in center['angmoms']:
+                lines.append('l = {:d}:'.format(angmom['value']))
+                for shell in angmom['shells']:
+                    lines.append('n = {:d}'.format(shell['id']))
+                    coef = shell['coefficients']
+                    exp = shell['exponents']
+                    for c, e in zip(coef, exp):
+                        lines.append('coef/exp = {:f} {:f}'.format(c, e))
+        return '\n'.join(lines)
 
     @property
     def labels(self):
@@ -116,7 +136,7 @@ class BasisSet():
         label_list = []
         for basis_id in self.contracted_ids:
             c, n, l, m, = basis_id
-            center_lbl = self.centers[c-1]
+            center_lbl = self.center_labels[c-1]
             n_lbl = str(n+l) if n+l < 10 else '*'
             l_lbl = angmom_name[l]
             if l == 0:
@@ -127,7 +147,55 @@ class BasisSet():
                 m_lbl = str(m)[::-1]
             label =  '{:6s}{:1s}{:1s}{:2s}'.format(center_lbl, n_lbl, l_lbl, m_lbl)
             label_list.append(label)
-        return label_list
+        return np.array(label_list, dtype='U')
+
+    @property
+    def _idtuples_ladder_order(self):
+        """
+        rank a basis tuple according to Molcas ordering
+
+        angmom components are ranked as (...,-2,-1,0,+1,+2,...)
+        """
+        idtuples = []
+        for id_tuple in self.contracted_ids:
+            center, n, l, m, = id_tuple
+            if l == 1 and m == 1:
+                m = -2
+            idtuples.append((center, l, m, n))
+        return idtuples
+
+    @property
+    def _idtuples_updown_order(self):
+        """
+        rank a basis tuple according to Molden/Gaussian ordering
+
+        angmom components are ranked as (0,1+,1-, 2+,2-,...)
+        """
+        idtuples = []
+        for id_tuple in self.contracted_ids:
+            center, n, l, m, = id_tuple
+            if l == 1 and m == 0:
+                m = 2
+            if m < 0:
+                m = -m + 0.5
+            idtuples.append((center, l, n, m))
+        return idtuples
+
+    def argsort_ids(self, ids=None, order='molcas'):
+        """
+        Reorder the supplied ids of the contracted functions by either
+        Molcas or Molden/Gaussian ranking and return an array of indices.
+        """
+
+        if ids is None:
+            ids = np.arange(self.n_cgto)
+
+        if order == 'molcas':
+            return self.cgto_molcas_indices[ids]
+        elif order == 'molden':
+            return self.cgto_molden_indices[ids]
+        else:
+            raise Error('invalid order parameter')
 
 
 @export
@@ -136,26 +204,15 @@ class OrbitalSet():
     Represents a set of orbitals with a common basis set, and keeps track of
     their properties (energy, occupation, type, irrep).
     """
-    def __init__(self, coefficients, basis_set=None, types=None,
+    def __init__(self, coefficients, ids=None, types=None,
                  irreps=None, energies=None, occupations=None,
-                 indices=None):
+                 basis_ids=None, basis_set=None):
+
         self.coefficients = np.asmatrix(coefficients)
         self.n_bas = coefficients.shape[0]
         self.n_orb = coefficients.shape[1]
         assert self.n_bas != 0
         assert self.n_orb != 0
-
-        if basis_set is not None:
-            if not isinstance(basis_set, BasisSet):
-                raise TypeError('please provide basis_set=<BasisSet>')
-            self.basis_set = basis_set
-        else:
-            self.basis_set = BasisSet()
-
-        if types is None:
-            self.types = np.array(['u'] * self.n_bas)
-        else:
-            self.types = types
 
         if irreps is None:
             self.irreps = np.zeros(self.n_bas)
@@ -163,6 +220,24 @@ class OrbitalSet():
         else:
             self.irreps = irreps
             self.n_irreps = len(set(irreps))
+
+        self.n_irreps = len(np.unique(irreps))
+
+        if ids is None:
+            if self.n_irreps > 1:
+                self.ids = np.zeros(self.n_orb, dtype=int)
+                for irrep in range(self.n_irreps):
+                    mo_set, = np.where(self.irreps == irrep)
+                    self.ids[mo_set] = 1 + np.arange(len(mo_set))
+            else:
+                self.ids = 1 + np.arange(self.n_orb)
+        else:
+            self.ids = ids
+
+        if types is None:
+            self.types = np.array(['-'] * self.n_bas)
+        else:
+            self.types = types
 
         if energies is None:
             self.energies = np.array([np.nan] * self.n_bas)
@@ -174,49 +249,54 @@ class OrbitalSet():
         else:
             self.occupations = occupations
 
-        if indices is None:
-            if self.n_irreps > 1:
-                self.indices = np.zeros(self.n_orb, dtype=int)
-                for irrep in range(self.n_irreps):
-                    mo_set, = np.where(self.irreps == irrep)
-                    self.indices[mo_set] = 1 + np.arange(len(mo_set))
-            else:
-                self.indices = 1 + np.arange(self.n_orb)
+        if basis_ids is None:
+            self.basis_ids = np.arange(self.n_bas)
         else:
-            self.indices = indices
+            self.basis_ids = basis_ids
+
+        self.basis_set = basis_set
 
     def copy(self):
         return self.__class__(
             self.coefficients.copy(),
-            basis_set=self.basis_set.copy(),
+            ids=self.ids.copy(),
             types=self.types.copy(),
             irreps=self.irreps.copy(),
             energies=self.energies.copy(),
             occupations=self.occupations.copy(),
-            indices=self.indices.copy(),
+            basis_ids=self.basis_ids.copy(),
+            basis_set=self.basis_set,
             )
 
     def __getitem__(self, index):
         return self.__class__(
             self.coefficients[:,index],
-            basis_set=self.basis_set.copy(),
+            ids=self.ids[index],
             types=self.types[index],
             irreps=self.irreps[index],
             energies=self.energies[index],
             occupations=self.occupations[index],
-            indices=self.indices[index],
+            basis_ids=self.basis_ids.copy(),
+            basis_set=self.basis_set,
             )
 
     def filter_basis(self, index):
         return self.__class__(
             self.coefficients[index,:],
-            basis_set=self.basis_set[index],
+            ids=self.ids.copy(),
             types=self.types.copy(),
             irreps=self.irreps.copy(),
             energies=self.energies.copy(),
             occupations=self.occupations.copy(),
-            indices=self.indices.copy(),
+            basis_ids=self.basis_ids[index],
+            basis_set=self.basis_set,
             )
+
+    def sort_basis(self, order='molcas'):
+
+        ids = self.basis_set.argsort_ids(self.basis_ids, order=order)
+
+        return self.filter_basis(ids)
 
     def __str__(self):
         """
@@ -230,7 +310,7 @@ class OrbitalSet():
         float_template = prefix + self.n_orb * '{:10.4f}' + '\n'
         str_template = prefix + self.n_orb * '{:>10s}' + '\n'
 
-        line = str_template.format("MO ID", *[str(t) for t in zip(self.irreps, self.indices)])
+        line = str_template.format("MO ID", *[str(t) for t in zip(self.irreps, self.ids)])
         lines.append(line)
 
         line = float_template.format('Occupation', *self.occupations)
@@ -243,9 +323,9 @@ class OrbitalSet():
         lines.append(line)
 
         try:
-            labels = self.basis_set.labels
+            labels = self.basis_set.labels[self.basis_ids]
         except AttributeError:
-            labels = np.arange(self.n_bas).astype('U')
+            labels = self.basis_ids.astype('U')
 
         lines.append('\n')
 
@@ -284,18 +364,19 @@ class OrbitalSet():
         index = np.lexsort((self.energies, -self.occupations))
 
         if reindex:
-            indices = None
+            ids = None
         else:
-            indices = self.indices[index]
+            ids = self.ids[index]
 
         return self.__class__(
             self.coefficients[:,index],
-            basis_set=self.basis_set.copy(),
+            ids=ids,
             types=self.types[index],
             irreps=self.irreps[index],
             energies=self.energies[index],
             occupations=self.occupations[index],
-            indices=indices,
+            basis_ids=self.basis_ids.copy(),
+            basis_set=self.basis_set,
             )
 
     def type(self, *typeids):
@@ -330,7 +411,8 @@ class Wavefunction():
             self.uhf = False
         self.salcs = salcs
 
-    def print_orbitals(self, by_irrep=True, types=None, erange=None, kind='restricted'):
+    def print_orbitals(self, by_irrep=True, types=None, erange=None,
+                       kind='restricted', order='molcas'):
 
         if kind == 'restricted':
             orbitals = self.mos_restricted
@@ -346,6 +428,8 @@ class Wavefunction():
 
         if erange is not None:
             orbitals = orbitals.erange(*erange)
+
+        orbitals = orbitals.sort_basis(order=order)
 
         if by_irrep:
             orbitals.show_by_irrep()
@@ -381,12 +465,12 @@ def gen_from_mh5(filename):
     primitives = f.primitives()
 
     basis_set = BasisSet(
-            centers=center_labels,
-            charges=center_charges,
-            coordinates=center_coordinates,
-            contracted_ids=contracted_ids,
-            primitive_ids=primitive_ids,
-            primitives=primitives
+            center_labels,
+            center_charges,
+            center_coordinates,
+            contracted_ids,
+            primitive_ids,
+            primitives,
             )
 
     if n_irreps > 1:

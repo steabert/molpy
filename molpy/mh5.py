@@ -117,64 +117,6 @@ class MolcasHDF5:
     def primitive_ids(self):
         return self.maybe_fetch_dset('PRIMITIVE_IDS')
 
-    def basisset(self):
-        """
-        generate a basisset as a nested list of centers, angular momenta,
-        and shells, where each shell is a dict of exponents and coefficients
-        """
-        nprim = self.maybe_fetch_attr('NPRIM')
-
-        if nprim is None:
-            return None
-
-        primids = self.maybe_fetch_dset('PRIMITIVE_IDS')
-        prims = self.maybe_fetch_dset('PRIMITIVES')
-
-        if primids is None or prims is None:
-            return None
-
-        basisset = []
-
-        center_ids = primids[:,0]
-        centers = np.unique(center_ids)
-        for center in centers:
-            index_center, = np.where(center_ids == center)
-            primids_center = primids[index_center,:]
-            prims_center = prims[index_center,:]
-
-            basisset_center = {}
-            basisset_center['id'] = center
-            basisset_center['angmoms'] = []
-
-            angmom_ids = primids_center[:,1]
-            angmoms = np.unique(angmom_ids)
-            for angmom in angmoms:
-                index_angmom, = np.where(angmom_ids == angmom)
-                primids_angmom = primids_center[index_angmom,:]
-                prims_angmom = prims_center[index_angmom,:]
-
-                basisset_angmom = {}
-                basisset_angmom['value'] = angmom
-                basisset_angmom['shells'] = []
-
-                shell_ids = primids_angmom[:,2]
-                shells = np.unique(shell_ids)
-                for shell in shells:
-                    index_shell, = np.where(shell_ids == shell)
-
-                    basisset_shell = {}
-                    basisset_shell['id'] = shell
-                    basisset_shell['exponents'] = prims_angmom[index_shell,0]
-                    basisset_shell['coefficients'] = prims_angmom[index_shell,1]
-
-                    basisset_angmom['shells'].append(basisset_shell)
-
-                basisset_center['angmoms'].append(basisset_angmom)
-
-            basisset.append(basisset_center)
-
-        return basisset
-
     def ispin(self):
         """ obtain spin multiplicity """
         return self.maybe_fetch_attr('ISPIN')
