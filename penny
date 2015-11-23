@@ -81,6 +81,12 @@ def argument_parser():
         help='remove symmetry from the orbitals'
         )
     parser.add_argument(
+        '-g',
+        '--guessorb',
+        action='store_true',
+        help='generate starting orbitals from a core-hamiltonian guess'
+        )
+    parser.add_argument(
         '-m',
         '--match',
         type=str,
@@ -133,6 +139,9 @@ def driver():
         pass
 
     base, ext = os.path.splitext(args.infile)
+
+    if args.guessorb:
+        wfn = molpy.Wavefunction(wfn.guessorb())
 
     if args.inporb:
         outpath = args.outfile or '.'.join((base, 'inporb'))

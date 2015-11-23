@@ -160,7 +160,7 @@ class MolcasHDF5:
             data_bytes = self.maybe_fetch_dset(attribute)
             typeindices = np.char.lower(np.array(list(data_bytes), dtype='U'))
         except DataNotAvailable:
-            typeindices = np.array(['u'] * sum(self.n_bas), dtype='U')
+            typeindices = np.array(['-'] * sum(self.n_bas), dtype='U')
         return arr_to_lst(typeindices, self.n_bas)
 
     def mo_occupations(self, kind='restricted'):
@@ -169,7 +169,7 @@ class MolcasHDF5:
         try:
             occupations = self.maybe_fetch_dset(attribute)
         except DataNotAvailable:
-            occupations = np.empty(sum(self.n_bas), dtype=float64)
+            occupations = np.empty(sum(self.n_bas), dtype=np.float64)
             occupations.fill(np.nan)
         return arr_to_lst(occupations, self.n_bas)
 
@@ -179,7 +179,7 @@ class MolcasHDF5:
         try:
             energies = self.maybe_fetch_dset(attribute)
         except DataNotAvailable:
-            energies = np.empty(sum(self.n_bas), dtype=float64)
+            energies = np.empty(sum(self.n_bas), dtype=np.float64)
             energies.fill(np.nan)
         return arr_to_lst(energies, self.n_bas)
 
@@ -189,7 +189,7 @@ class MolcasHDF5:
         try:
             vectors = self.maybe_fetch_dset(attribute)
         except DataNotAvailable:
-            vectors = np.empty(sum(self.n_bas**2), dtype=float64)
+            vectors = np.empty(sum(self.n_bas**2), dtype=np.float64)
             vectors.fill(np.nan)
         return arr_to_lst(vectors, [(nb,nb) for nb in self.n_bas])
 

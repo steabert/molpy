@@ -232,6 +232,7 @@ class OrbitalSet():
                     self.ids[mo_set] = 1 + np.arange(len(mo_set))
             else:
                 self.ids = 1 + np.arange(self.n_orb)
+            #self.ids = 1 + np.arange(self.n_orb)
         else:
             self.ids = ids
 
@@ -412,7 +413,7 @@ class OrbitalSet():
 
 @export
 class Wavefunction():
-    def __init__(self, orbitals=None, salcs=None, overlap=None, density=None):
+    def __init__(self, orbitals=None, salcs=None, overlap=None, fockint=None):
         try:
             self.mos_alpha, self.mos_beta = orbitals
             self.uhf = True
@@ -420,9 +421,11 @@ class Wavefunction():
             self.mos_restricted = orbitals
             self.uhf = False
         self.salcs = salcs
+        self.overlap = overlap
+        self.fockint = fockint
 
-    def print_orbitals(self, by_irrep=True, types=None, erange=None, pattern=None,
-                       kind='restricted', order='molcas'):
+    def print_orbitals(self, by_irrep=False, types=None, erange=None, pattern=None,
+                       kind='restricted', order=None):
 
         if kind == 'restricted':
             orbitals = self.mos_restricted
@@ -442,12 +445,45 @@ class Wavefunction():
         if pattern is not None:
             orbitals = orbitals.pattern(pattern)
 
-        orbitals = orbitals.sort_basis(order=order)
+        if order is not None:
+            orbitals = orbitals.sort_basis(order=order)
 
         if by_irrep:
             orbitals.show_by_irrep()
         else:
             orbitals.show()
+
+    def guessorb(self):
+        """
+        generate a set of initial molecular orbitals
+        """
+        Smat_ao = np.asmatrix(self.overlap)
+        Fmat_ao = np.asmatrix(self.fockint)
+        C_mo = np.asmatrix(self.mos_restricted.coefficients)
+        E_mo = np.empty(len(self.mos_restricted.energies))
+        irreps = self.mos_restricted.irreps.copy()
+        for irrep in np.unique(irreps):
+            mo_set, = np.where(irreps == irrep)
+            Cmat = C_mo[:,mo_set]
+            Smat_mo = Cmat.T * Smat_ao * Cmat
+            # orthonormalize
+            s,U = np.linalg.eigh(Smat_mo)
+            U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
+            Cmat = Cmat * U_lowdin
+            # diagonalize metric Fock
+            Fmat_mo = Cmat.T * Smat_ao.T * Fmat_ao * Smat_ao * Cmat
+            f,U = np.linalg.eigh(Fmat_mo)
+            Cmat = Cmat * U
+            # copy back to correct supsym id
+            C_mo[:,mo_set] = Cmat
+            E_mo[mo_set] = f
+        # finally, create new orbital set with new coefficients and energies
+        mo_order = np.argsort(E_mo)
+        guess_orbitals = OrbitalSet(C_mo[:,mo_order],
+                                    energies=E_mo[mo_order],
+                                    irreps=irreps[mo_order],
+                                    basis_set=self.mos_restricted.basis_set)
+        return guess_orbitals
 
 @export
 def gen_from_mh5(filename):
@@ -474,8 +510,11 @@ def gen_from_mh5(filename):
         center_charges = f.center_charges()
         center_coordinates = f.center_coordinates()
         contracted_ids = f.basis_function_ids()
+        overlap = f.ao_overlap_matrix()
+        fockint = f.ao_fockint_matrix()
     primitive_ids = f.primitive_ids()
     primitives = f.primitives()
+
 
     basis_set = BasisSet(
             center_labels,
@@ -525,6 +564,9 @@ def gen_from_mh5(filename):
         mo_typeindices = lst_to_arr(mo_typeindices)
         mo_vectors = la.block_diag(*mo_vectors)
 
+        if n_irreps > 1:
+            mo_vectors = np.dot(salcs, mo_vectors)
+
         mo = OrbitalSet(mo_vectors,
                         types=mo_typeindices,
                         irreps=mo_irreps,
@@ -532,4 +574,10 @@ def gen_from_mh5(filename):
                         occupations=mo_occupations,
                         basis_set=basis_set)
 
-    return Wavefunction(orbitals=mo)
+    overlap = la.block_diag(*f.ao_overlap_matrix())
+    fockint = la.block_diag(*f.ao_fockint_matrix())
+    if n_irreps > 1:
+        overlap = np.dot(np.dot(salcs, overlap), salcs.T)
+        fockint = np.dot(np.dot(salcs, fockint), salcs.T)
+
+    return Wavefunction(orbitals=mo, overlap=overlap, fockint=fockint)
