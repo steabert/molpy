@@ -607,11 +607,37 @@ class Wavefunction():
     @classmethod
     def from_inporb(cls, filename):
         """ Generates a wavefunction from a Molcas INPORB file """
-        f = inporb.MolcasINPORB(filename, 'r')
+        f = MolcasINPORB(filename, 'r')
 
         n_bas = f.n_bas
 
         if n_bas is None:
             raise Exception('no basis set size available on file')
 
-        n_irreps = len(n_bas)
+        irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
+        mo_irreps = lst_to_arr(irrep_list)
+
+        unrestricted = f.unrestricted
+        if unrestricted:
+            kinds = ['alfa', 'beta']
+        else:
+            kinds = ['restricted']
+
+        mo = {}
+        for kind in kinds:
+            mo_vectors = f.read_orb(kind=kind)
+            mo_occupations = f.read_occ(kind=kind)
+            mo_energies = f.read_one(kind=kind)
+            mo_typeindices = f.read_index()
+
+            mo_occupations = lst_to_arr(mo_occupations)
+            mo_energies = lst_to_arr(mo_energies)
+            mo_typeindices = lst_to_arr(mo_typeindices)
+            mo_vectors = la.block_diag(*mo_vectors)
+
+            mo[kind] = OrbitalSet(mo_vectors,
+                                  types=mo_typeindices,
+                                  irreps=mo_irreps,
+                                  energies=mo_energies,
+                                  occupations=mo_occupations)
+        return cls(mo, None)

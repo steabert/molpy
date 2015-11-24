@@ -11,7 +11,11 @@ class MolcasINPORB():
 
         if mode.startswith('r'):
             line = seek_line(self.f, '#INPORB')
-            self._version = line.split()[1]
+            self.version = line.split()[1]
+            seek_line(self.f, '#INFO')
+            self.unrestricted, self.n_sym, self.wfn_type = (int(val) for val in self._next_noncomment().split())
+            self.n_bas = np.array(self._next_noncomment().split(), dtype=np.int)
+            self.n_orb = np.array(self._next_noncomment().split(), dtype=np.int)
         elif mode.startswith('w'):
             self.version = version
         else:
@@ -20,18 +24,18 @@ class MolcasINPORB():
         if self.version == '2.0':
             self.read_block = self._read_block_v20
             self.occ_fmt = ' {:7.4f}'
-            self.ene_fmt = ' {:12.4e}'
+            self.one_fmt = ' {:12.4e}'
             self.orb_fmt = ' {:21.14e}'
             self.occ_blk_size = 10
-            self.ene_blk_size = 10
+            self.one_blk_size = 10
             self.orb_blk_size = 5
         elif self.version == '1.1':
             self.read_block = self._read_block_v11
             self.occ_fmt = '{:18.11e}'
-            self.ene_fmt = '{:18.11e}'
+            self.one_fmt = '{:18.11e}'
             self.orb_fmt = '{:18.11e}'
             self.occ_blk_size = 4
-            self.ene_blk_size = 4
+            self.one_blk_size = 4
             self.orb_blk_size = 4
         else:
             raise Exception('invalid version number')
@@ -56,125 +60,52 @@ class MolcasINPORB():
     def close(self):
         self.f.close()
 
-    # required by the MolcasWFN class
-    def nsym(self):
-        return self._nsym
+    def read_orb(self, kind='restricted'):
 
-    def nbas(self):
-        return self._nbas
-
-    def mo_vectors(self, nbas, uhf):
-        data_flat = self._orb
-        if data_flat is not None:
-            if not uhf:
-                rhf = arr_to_lst(data_flat, [(nb,nb) for nb in nbas])
-                vectors = (rhf, None)
-            else:
-                nbast = np.sum(nbas**2)
-                alpha = arr_to_lst(data_flat[:nbast], [(nb,nb) for nb in nbas])
-                beta = arr_to_lst(data_flat[nbast:], [(nb,nb) for nb in nbas])
-                vectors = (alpha, beta)
-        else:
-            vectors = (None, None)
-        return vectors
-
-    def mo_occupations(self, nbas, uhf):
-        data_flat = self._occ
-        if data_flat is not None:
-            if not uhf:
-                rhf = arr_to_lst(data_flat, nbas)
-                occupations = (rhf, None)
-            else:
-                nbast = np.sum(nbas)
-                alpha = arr_to_lst(data_flat[:nbast], nbas)
-                beta = arr_to_lst(data_flat[nbast:], nbas)
-                occupations = (alpha, beta)
-        else:
-            occupations = (None, None)
-        return occupations
-
-    def mo_energies(self, nbas, uhf):
-
-        data_flat = self._one
-        if data_flat is not None:
-            if not uhf:
-                rhf = arr_to_lst(data_flat, nbas)
-                energies = (rhf, None)
-            else:
-                nbast = np.sum(nbas)
-                alpha = arr_to_lst(data_flat[:nbast], nbas)
-                beta = arr_to_lst(data_flat[nbast:], nbas)
-                energies = (alpha, beta)
-        else:
-            energies = (None, None)
-        return energies
-
-    def mo_typeindices(self, nbas, uhf):
-        data_flat = self._index
-        if data_flat is not None:
-            typeindices = arr_to_lst(np.char.lower(data_flat), nbas)
-            if not uhf:
-                rhf = arr_to_lst(data_flat, nbas)
-                typeindices = (rhf, None)
-            else:
-                nbast = np.sum(nbas)
-                alpha = arr_to_lst(data_flat[:nbast], nbas)
-                beta = arr_to_lst(data_flat[nbast:], nbas)
-                typeindices = (alpha, beta)
-        else:
-            typeindices = (None, None)
-        return typeindices
-
-    def read_info(self):
-
-        seek_line(self.f, '#INFO')
-        self._isuhf, self._nsym, self._wftype = (int(val) for val in self._next_noncomment().split())
-        self._nbas = np.array(self._next_noncomment().split(), dtype=np.int)
-        self._norb = np.array(self._next_noncomment().split(), dtype=np.int)
-        print(self._nsym, self._nbas)
-
-    def read_orb(self):
-
-        seek_line(self.f, '#ORB')
-        self._orb = np.empty(sum(self._nbas**2), dtype=np.float64)
+        seek_line(self.f, self._format_header('ORB', kind=kind))
+        coefficients = np.empty(sum(self.n_bas**2), dtype=np.float64)
         sym_offset = 0
-        for nb in self._nbas:
+        for nb in self.n_bas:
             if nb == 0:
                 continue
             for offset in range(sym_offset, sym_offset + nb**2, nb):
-                self._orb[offset:offset+nb] = self.read_block(nb)
+                coefficients[offset:offset+nb] = self.read_block(nb)
             sym_offset += nb**2
+        return arr_to_lst(coefficients, [(nb,nb) for nb in self.n_bas])
 
-    def read_occ(self):
+    def read_occ(self, kind='restricted'):
 
-        seek_line(self.f, '#OCC')
-        self._occ = np.empty(sum(self._nbas), dtype=np.float64)
+        seek_line(self.f, self._format_header('OCC', kind=kind))
+        occupations = np.empty(sum(self.n_bas), dtype=np.float64)
         sym_offset = 0
-        for nb in self._nbas:
-            self._occ[sym_offset:sym_offset+nb] = self.read_block(nb, self.blk_size)
+        for nb in self.n_bas:
+            occupations[sym_offset:sym_offset+nb] = self.read_block(nb, self.occ_blk_size)
             sym_offset += nb
+        return arr_to_lst(occupations, self.n_bas)
 
-    def read_one(self):
+    def read_one(self, kind='restricted'):
 
-        seek_line(self.f, '#ONE')
-        self._one = np.empty(sum(self._nbas), dtype=np.float64)
+        seek_line(self.f, self._format_header('ONE', kind=kind))
+        energies = np.empty(sum(self.n_bas), dtype=np.float64)
         sym_offset = 0
-        for nb in self._nbas:
-            self._one[sym_offset:sym_offset+nb] = self.read_block(nb, self.blk_size)
+        for nb in self.n_bas:
+            energies[sym_offset:sym_offset+nb] = self.read_block(nb, self.one_blk_size)
             sym_offset += nb
+        return arr_to_lst(energies, self.n_bas)
 
     def read_index(self):
 
         seek_line(self.f, '#INDEX')
-        self._index = np.empty(sum(self._nbas), dtype='U1')
+        typeindices = np.empty(sum(self.n_bas), dtype='U1')
         blk_size = 10
         sym_offset = 0
-        for nb in self._nbas:
+        for nb in self.n_bas:
             for offset in range(sym_offset, sym_offset + nb, blk_size):
                 values = self._next_noncomment().split()[1].strip()
                 size = min(blk_size, sym_offset + nb - offset)
-                self._index[offset:offset+size] = np.array([values]).view('U1')
+                typeindices[offset:offset+size] = np.array([values]).view('U1')
             sym_offset += nb
+        return arr_to_lst(typeindices, self.n_bas)
 
     def write_version(self, version):
         self.f.write('#INPORB {:s}\n'.format(version))
@@ -188,12 +119,7 @@ class MolcasINPORB():
 
     def write_orb(self, mo_vectors, kind='restricted'):
 
-        if kind == 'beta':
-            header = '#UORB\n'
-        else:
-            header = '#ORB\n'
-        self.f.write(header)
-
+        self.f.write(self._format_header('ORB', kind=kind))
         for isym, coef in enumerate(mo_vectors):
             norb = coef.shape[0]
             for jorb in range(norb):
@@ -201,23 +127,15 @@ class MolcasINPORB():
                 self._write_blocked(np.ravel(coef[:,jorb]), self.orb_fmt)
 
     def write_occ(self, mo_occupations, kind='restricted'):
-        if kind == 'beta':
-            header = '#UOCC\n'
-        else:
-            header = '#OCC\n'
-        self.f.write(header)
 
+        self.f.write(self._format_header('OCC', kind=kind))
         self.f.write('* OCCUPATION NUMBERS\n')
         for occ in mo_occupations:
             self._write_blocked(occ, self.occ_fmt, blocksize=self.occ_blk_size)
 
     def write_one(self, mo_energies, kind='restricted'):
-        if kind == 'beta':
-            header = '#UONE\n'
-        else:
-            header = '#ONE\n'
-        self.f.write(header)
 
+        self.f.write(self._format_header('ONE', kind=kind))
         self.f.write('* ONE ELECTRON ENERGIES\n')
         for ene in mo_energies:
             self._write_blocked(ene, self.ene_fmt, blocksize=self.ene_blk_size)
@@ -271,3 +189,10 @@ class MolcasINPORB():
             for offset in range(0, len(arr), blocksize):
                 line = ''.join(fmt.format(i) for i in arr[offset:offset+blocksize])
                 self.f.write(line + '\n')
+
+    @staticmethod
+    def _format_header(header, kind='restricted'):
+        if kind == 'beta':
+            return '#U' + header
+        else:
+            return '#' + header

@@ -132,7 +132,7 @@ def driver():
     if (filename.endswith('.h5')):
         wfn = molpy.Wavefunction.from_h5(filename)
     else:
-        pass
+        wfn = molpy.Wavefunction.from_inporb(filename)
 
     base, ext = os.path.splitext(args.infile)
 
