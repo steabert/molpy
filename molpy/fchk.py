@@ -39,11 +39,13 @@ class MolcasFCHK:
             )
         for kind in wfn.mo.keys():
             orbitals = wfn.mo[kind].sort_basis(order='molden')
-            orbitals.show()
             self.write_orbitals(
                 orbitals,
                 kind=kind,
                 )
+
+    def close(self):
+        self.f.close()
 
     def write_scalar_int(self, name, value):
         self.f.write('{:40s}   {:1s}     {:12d}\n'.format(name, 'I', value))
@@ -141,7 +143,6 @@ class MolcasFCHK:
                 highest_angmom = max(angmom['value'], highest_angmom)
                 contracted_shells += len(angmom['shells'])
                 for shell in angmom['shells']:
-                    print(ishell, angmom['value'])
                     shell_types[ishell] = angmom['value'] * (-1)**(angmom['value']//2)
                     shell_to_atom_map[ishell] = center['id']
                     shell_coordinates[:,ishell] = coords[center['id']-1,:]
