@@ -70,7 +70,6 @@ class BasisSet():
         shell_ids = self.primitive_ids[:,2]
 
         for center_id in np.unique(center_ids):
-            print(center_id, self.center_labels[center_id-1])
             center_selection = (center_ids == center_id)
 
             center = {}
