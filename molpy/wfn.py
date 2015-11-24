@@ -299,16 +299,19 @@ class OrbitalSet():
         returns the Orbital coefficients formatted as columns
         """
 
-        lines = []
-
         prefix = '{:16s}'
         int_template = prefix + self.n_orb * '{:10d}'
         float_template = prefix + self.n_orb * '{:10.4f}'
         str_template = prefix + self.n_orb * '{:>10s}'
 
+        lines = []
+        lines.append('')
+
         line = int_template.format("ID", *self.ids)
         lines.append(line)
-        lines.append('')
+
+        line = str_template.format('', *(['------'] * self.n_orb))
+        lines.append(line)
 
         line = int_template.format("irrep", *self.irreps)
         lines.append(line)
@@ -411,13 +414,17 @@ class OrbitalSet():
 
 @export
 class Wavefunction():
-    def __init__(self, mo, basis_set, salcs=None, overlap=None, fockint=None, spinmult=None):
+    def __init__(self, mo, basis_set, salcs=None,
+                 overlap=None, fockint=None,
+                 spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
         self.basis_set = basis_set
         self.salcs = salcs
         self.overlap = overlap
         self.fockint = fockint
         self.spinmult = spinmult
+        self.n_bas = n_bas
+        self.n_sym = n_sym
 
     def electronic_info(self):
         '''
@@ -513,7 +520,7 @@ class Wavefunction():
                                         energies=E_mo[mo_order],
                                         irreps=irreps[mo_order],
                                         basis_set=self.mo[kind].basis_set)
-        return Wavefunction(guessorb, self.basis_set)
+        return Wavefunction(guessorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
 
     @classmethod
     def from_h5(cls, filename):
@@ -525,9 +532,9 @@ class Wavefunction():
         if n_bas is None:
             raise Exception('no basis set size available on file')
 
-        n_irreps = len(n_bas)
+        n_sym = len(n_bas)
 
-        if n_irreps > 1:
+        if n_sym > 1:
             n_atoms = f.natoms_all()
             center_labels = f.desym_center_labels()
             center_charges = f.desym_center_charges()
@@ -555,7 +562,7 @@ class Wavefunction():
                 primitives,
                 )
 
-        if n_irreps > 1:
+        if n_sym > 1:
             irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
             mo_irreps = lst_to_arr(irrep_list)
         else:
@@ -579,7 +586,7 @@ class Wavefunction():
             mo_typeindices = lst_to_arr(mo_typeindices)
             mo_vectors = la.block_diag(*mo_vectors)
 
-            if n_irreps > 1:
+            if n_sym > 1:
                 mo_vectors = np.dot(salcs, mo_vectors)
 
             mo[kind] = OrbitalSet(mo_vectors,
@@ -591,7 +598,7 @@ class Wavefunction():
 
         overlap = la.block_diag(*f.ao_overlap_matrix())
         fockint = la.block_diag(*f.ao_fockint_matrix())
-        if n_irreps > 1:
+        if n_sym > 1:
             overlap = np.dot(np.dot(salcs, overlap), salcs.T)
             fockint = np.dot(np.dot(salcs, fockint), salcs.T)
 
@@ -602,7 +609,7 @@ class Wavefunction():
 
         return cls(mo, basis_set,
                    overlap=overlap, fockint=fockint,
-                   spinmult=ispin)
+                   spinmult=ispin, n_sym=n_sym, n_bas=n_bas)
 
     @classmethod
     def from_inporb(cls, filename):
@@ -613,6 +620,8 @@ class Wavefunction():
 
         if n_bas is None:
             raise Exception('no basis set size available on file')
+
+        n_sym = len(n_bas)
 
         irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
         mo_irreps = lst_to_arr(irrep_list)
@@ -640,4 +649,5 @@ class Wavefunction():
                                   irreps=mo_irreps,
                                   energies=mo_energies,
                                   occupations=mo_occupations)
-        return cls(mo, None)
+
+        return cls(mo, None, n_sym=n_sym, n_bas=n_bas)

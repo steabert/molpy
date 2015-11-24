@@ -138,7 +138,7 @@ class MolcasINPORB():
         self.f.write(self._format_header('ONE', kind=kind))
         self.f.write('* ONE ELECTRON ENERGIES\n')
         for ene in mo_energies:
-            self._write_blocked(ene, self.ene_fmt, blocksize=self.ene_blk_size)
+            self._write_blocked(ene, self.one_fmt, blocksize=self.one_blk_size)
 
     def write_index(self, mo_typeindices, kind='restricted'):
 

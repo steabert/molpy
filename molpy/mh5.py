@@ -20,6 +20,9 @@ class MolcasHDF5:
                 raise DataNotAvailable('required data is missing!')
             assert self.n_sym == len(self.n_bas)
 
+    def close(self):
+        self.h5f.close()
+
     def maybe_fetch_attr(self, field):
 
         try:
@@ -224,12 +227,16 @@ class MolcasHDF5:
         return arr_to_lst(labels, self.n_bas)
 
     def write(self, wfn):
-        self.h5f.attrs['NSYM'] = wfn.nsym
-        self.h5f.attrs['self.n_bas'] = lst_to_arr(wfn.self.n_bas)
-        self.h5f.attrs['IRREP_LABELS'] = wfn.irrep_labels.astype('S')
-        self.h5f['MO_VECTORS'] = lst_to_arr(wfn.mo_vectors)
-        # self.h5f['MO_OCCUPATIONS'] = lst_to_arr(wfn.mo_occupations)
-        self.h5f['MO_ENERGIES'] = lst_to_arr(wfn.mo_energies)
-        # self.h5f['MO_TYPEINDICES'] = lst_to_arr(wfn.mo_typeindices).astype('S')
-        self.h5f['SUPSYM_IRREP_INDICES'] = lst_to_arr(wfn.supsym_irrep_indices)
-        self.h5f['SUPSYM_IRREP_LABELS'] = lst_to_arr(wfn.supsym_irrep_labels).astype('S8')
+        self.h5f.attrs['NSYM'] = wfn.n_sym
+        self.h5f.attrs['NBAS'] = lst_to_arr(wfn.n_bas)
+        for kind in wfn.mo.keys():
+            orbitals = wfn.mo[kind]
+            field = self._get_mo_attribute('VECTORS', kind=kind)
+            self.h5f[field] = np.ravel(orbitals.coefficients)
+            field = self._get_mo_attribute('OCCUPATIONS', kind=kind)
+            self.h5f[field] = np.ravel(orbitals.occupations)
+            field = self._get_mo_attribute('ENERGIES', kind=kind)
+            self.h5f[field] = np.ravel(orbitals.energies)
+            field = self._get_mo_attribute('TYPEINDICES', kind=kind)
+            self.h5f[field] = np.ravel(orbitals.types).astype('S')
+            self.h5f['SUPSYM_IRREP_INDICES'] = np.ravel(orbitals.irreps)
