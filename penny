@@ -13,7 +13,9 @@
 # Steven Vancoillie, summer-fall 2015
 
 import os
+import sys
 import argparse
+import numpy as np
 
 import molpy
 
@@ -34,6 +36,26 @@ def argument_parser():
         type=str,
         help='name of the output file'
         )
+    parser.add_argument(
+        '-c',
+        '--convert',
+        type=str,
+        choices=('inporb', 'h5', 'fchk', 'molden'),
+        help='output format'
+        )
+    parser.add_argument(
+        '-f',
+        '--force',
+        action='store_true',
+        help='force output file overwrite'
+        )
+
+    parser.add_argument(
+        '-g',
+        '--guessorb',
+        action='store_true',
+        help='generate starting orbitals from a core-hamiltonian guess'
+        )
 
     parser.add_argument(
         '-p',
@@ -42,49 +64,21 @@ def argument_parser():
         help='print orbitals'
         )
     parser.add_argument(
-        '-f',
-        '--force',
+        '-d',
+        '--desymmetrize',
         action='store_true',
-        help='force output file overwrite'
+        help='remove irrep blocking of the orbitals'
         )
     parser.add_argument(
-        '--molden',
+        '--supsym',
         action='store_true',
-        help='generate Molden format file'
+        help='print a Molcas SUPSym input'
         )
-    parser.add_argument(
-        '--fchk',
-        action='store_true',
-        help='generate Guassian formatted checkpoint file'
-        )
-    parser.add_argument(
-        '--mh5',
-        action='store_true',
-        help='generate Molcas HDF5 file'
-        )
-    parser.add_argument(
-        '--inporb',
-        action='store_true',
-        help='generate Molcas INPORB file'
-        )
-
     parser.add_argument(
         '--linewidth',
         type=int,
         default=10,
         help='number of orbitals printed on a line'
-        )
-    parser.add_argument(
-        '-d',
-        '--desymmetrize',
-        action='store_true',
-        help='remove symmetry from the orbitals'
-        )
-    parser.add_argument(
-        '-g',
-        '--guessorb',
-        action='store_true',
-        help='generate starting orbitals from a core-hamiltonian guess'
         )
     parser.add_argument(
         '-m',
@@ -100,6 +94,7 @@ def argument_parser():
         choices=('f', 'i', '1', '2', '3', 's', 'd'),
         help='only print MOs with selected type ids'
         )
+
     parser.add_argument(
         '-v',
         '--verbose',
@@ -114,6 +109,7 @@ def argument_parser():
         )
 
     return parser
+
 
 
 def driver():
@@ -134,42 +130,51 @@ def driver():
 
     filename = args.infile
     if (filename.endswith('.h5')):
-        wfn = molpy.gen_from_mh5(filename)
+        wfn = molpy.Wavefunction.from_h5(filename)
     else:
         pass
 
     base, ext = os.path.splitext(args.infile)
 
     if args.guessorb:
-        wfn = molpy.Wavefunction(wfn.guessorb())
+        wfn = wfn.guessorb()
 
-    if args.inporb:
-        outpath = args.outfile or '.'.join((base, 'inporb'))
-        check_outfile(outpath)
-        f = molpy.MolcasINPORB(outpath, 'w')
-        f.write(wfn)
+    if args.convert:
+        outpath = args.outfile or '.'.join((base, args.convert))
+        if os.path.isfile(outpath) and not args.force:
+            print(
+                """
+                the requested output file already exists
 
-    if args.molden:
-        outpath = args.outfile or '.'.join((base, 'molden'))
-        check_outfile(outpath)
-        f = molpy.MolcasMOLDEN(outpath, 'w')
+                To continue, please remove the file, use the
+                -f/--force option to overwrite the file, or
+                give another name with the -o/--outfile option
+                """
+                )
+            sys.exit(1)
+        FileFormat = {
+            'h5': molpy.MolcasHDF5,
+            'inporb': molpy.MolcasINPORB,
+            'molden': molpy.MolcasMOLDEN,
+            'fchk': molpy.MolcasFCHK,
+            }
+        f = FileFormat[args.convert](outpath, 'w')
         f.write(wfn)
-
-    if args.mh5:
-        outpath = args.outfile or '.'.join((base, 'mh5'))
-        check_outfile(outpath)
-        f = molpy.MolcasHDF5(outpath, 'w')
-        f.write(wfn)
-
-    if args.fchk:
-        outpath = args.outfile or '.'.join((base, 'fchk'))
-        check_outfile(outpath)
-        f = molpy.MolcasFCHK(outpath, 'w')
-        f.write(wfn)
+        f.close()
 
     if args.print_orbitals:
         molpy.tools.print_header('Molecular Orbitals')
-        wfn.print_orbitals(types=args.typeids, pattern=args.match)
+        wfn.print_orbitals(types=args.typeids, pattern=args.match, desym=args.desymmetrize)
+
+    if args.supsym:
+        for kind in wfn.mo.keys():
+            orbitals = wfn.mo[kind]
+            irreps = np.unique(orbitals.irreps)
+            print('SUPSym')
+            print(len(irreps))
+            for irrep in irreps:
+                mo_set, = np.where(orbitals.irreps == irrep)
+                print(len(mo_set), '  ', *(1+mo_set))
 
 if __name__ == '__main__':
     driver()
