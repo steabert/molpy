@@ -44,7 +44,7 @@ end up in `~/.local/bin/penny`, so you either need to add
 
 ## Help
 Questions regarding the use of molpy together with Molcas
-can be best asked on the [Molcas Forum](http://www.molcas.org/forum).
+can be best asked on the [Molcas Forum](https://cobalt.itc.univie.ac.at/molcasforum/).
 
 Issues with the package itself are handled through the
 [issue tracker](https://github.com/steabert/molpy/issues) on github.
