@@ -1,11 +1,13 @@
-from . import export
-from . import mh5
 import numpy as np
 from collections import namedtuple
-from .tools import lst_to_arr, argsort
 from scipy import linalg as la
-from .errors import Error, DataNotAvailable
 import re
+
+from . import export
+from .mh5 import MolcasHDF5
+from .inporb import MolcasINPORB
+from .tools import lst_to_arr, argsort
+from .errors import Error, DataNotAvailable
 
 typename = {
     'f': 'fro',
@@ -68,27 +70,28 @@ class BasisSet():
         shell_ids = self.primitive_ids[:,2]
 
         for center_id in np.unique(center_ids):
+            print(center_id, self.center_labels[center_id-1])
             center_selection = (center_ids == center_id)
 
             center = {}
             center['id'] = center_id
-            center['label'] = self.center_labels[center_id]
+            center['label'] = self.center_labels[center_id-1]
             center['angmoms'] = []
 
-            for angmom_id in np.unique(angmom_ids):
+            for angmom_id in np.unique(angmom_ids[center_selection]):
                 angmom_selection = center_selection & (angmom_ids == angmom_id)
 
                 angmom = {}
                 angmom['value'] = angmom_id
                 angmom['shells'] = []
 
-                for shell_id in np.unique(shell_ids):
+                for shell_id in np.unique(shell_ids[angmom_selection]):
                     shell_selection = angmom_selection & (shell_ids == shell_id)
 
                     shell = {}
                     shell['id'] = shell_id
-                    shell['exponents'] = primitives[shell_selection,0]
-                    shell['coefficients'] = primitives[shell_selection,1]
+                    shell['exponents'] = self.primitives[shell_selection,0]
+                    shell['coefficients'] = self.primitives[shell_selection,1]
 
                     angmom['shells'].append(shell)
 
@@ -192,9 +195,9 @@ class BasisSet():
             ids = np.arange(self.n_cgto)
 
         if order == 'molcas':
-            return np.argsort(self.cgto_molcas_indices[ids])
+            return self.cgto_molcas_indices[ids]
         elif order == 'molden':
-            return np.argsort(self.cgto_molden_indices[ids])
+            return self.cgto_molden_indices[ids]
         else:
             raise Error('invalid order parameter')
 
@@ -225,14 +228,7 @@ class OrbitalSet():
         self.n_irreps = len(np.unique(irreps))
 
         if ids is None:
-            if self.n_irreps > 1:
-                self.ids = np.zeros(self.n_orb, dtype=int)
-                for irrep in range(self.n_irreps):
-                    mo_set, = np.where(self.irreps == irrep)
-                    self.ids[mo_set] = 1 + np.arange(len(mo_set))
-            else:
-                self.ids = 1 + np.arange(self.n_orb)
-            #self.ids = 1 + np.arange(self.n_orb)
+            self.ids = 1 + np.arange(self.n_orb)
         else:
             self.ids = ids
 
@@ -297,7 +293,6 @@ class OrbitalSet():
     def sort_basis(self, order='molcas'):
 
         ids = self.basis_set.argsort_ids(self.basis_ids, order=order)
-
         return self.filter_basis(ids)
 
     def __str__(self):
@@ -308,11 +303,15 @@ class OrbitalSet():
         lines = []
 
         prefix = '{:16s}'
-        int_template = prefix + self.n_orb * '{:10d}' + '\n'
-        float_template = prefix + self.n_orb * '{:10.4f}' + '\n'
-        str_template = prefix + self.n_orb * '{:>10s}' + '\n'
+        int_template = prefix + self.n_orb * '{:10d}'
+        float_template = prefix + self.n_orb * '{:10.4f}'
+        str_template = prefix + self.n_orb * '{:>10s}'
 
-        line = str_template.format("MO ID", *[str(t) for t in zip(self.irreps, self.ids)])
+        line = int_template.format("ID", *self.ids)
+        lines.append(line)
+        lines.append('')
+
+        line = int_template.format("irrep", *self.irreps)
         lines.append(line)
 
         line = float_template.format('Occupation', *self.occupations)
@@ -329,13 +328,13 @@ class OrbitalSet():
         except AttributeError:
             labels = self.basis_ids.astype('U')
 
-        lines.append('\n')
+        lines.append('')
 
         for ibas in range(self.n_bas):
             line = float_template.format(labels[ibas], *np.ravel(self.coefficients[ibas,:]))
             lines.append(line)
 
-        return ''.join(lines)
+        return '\n'.join(lines)
 
     def show(self, cols=10):
         """
@@ -353,7 +352,7 @@ class OrbitalSet():
                 print('symmetry {:d}'.format(irrep))
                 print()
                 indices, = np.where(self.irreps == irrep)
-                self[indices].sorted().show(cols=cols)
+                self[indices].sorted(reindex=True).show(cols=cols)
         else:
             self.show(cols=cols)
 
@@ -413,27 +412,57 @@ class OrbitalSet():
 
 @export
 class Wavefunction():
-    def __init__(self, orbitals=None, salcs=None, overlap=None, fockint=None):
-        try:
-            self.mos_alpha, self.mos_beta = orbitals
-            self.uhf = True
-        except:
-            self.mos_restricted = orbitals
-            self.uhf = False
+    def __init__(self, mo, basis_set, salcs=None, overlap=None, fockint=None, spinmult=None):
+        self.mo = mo
+        self.basis_set = basis_set
         self.salcs = salcs
         self.overlap = overlap
         self.fockint = fockint
+        self.spinmult = spinmult
 
-    def print_orbitals(self, by_irrep=False, types=None, erange=None, pattern=None,
+    def electronic_info(self):
+        '''
+        return a tuple containing the total number of electrons, the number of
+        alpha electrons, the number of beta electrons, and the spin multiplicity.
+        '''
+        if 'alfa' in self.mo and 'beta' in self.mo:
+            n_alfa = int(np.sum(self.mo['alfa'].occupations))
+            n_beta = int(np.sum(self.mo['beta'].occupations))
+            n_electrons = n_alfa + n_beta
+            if self.spinmult is None:
+                spinmult = n_alfa - n_beta + 1
+            else:
+                spinmult = self.spinmult
+        elif 'restricted' in self.mo:
+            try:
+                n_electrons = int(np.sum(self.mo['restricted'].occupations))
+            except ValueError:
+                n_electrons = 0
+            if self.spinmult is None:
+                spinmult = 1
+            else:
+                spinmult = self.spinmult
+            n_beta = (n_electrons - (spinmult - 1)) // 2
+            n_alfa = n_electrons - n_beta
+        else:
+            raise InvalidRequest('orbital dict does not contain valid keys')
+        electronic_charge = -n_electrons
+        return (n_electrons, n_alfa, n_beta, spinmult, electronic_charge)
+
+    def nuclear_info(self):
+        '''
+        return a tuple containing the total number of atoms and nuclear charge
+        '''
+        n_atoms = len(self.basis_set.center_labels)
+        nuclear_charge = int(np.sum(self.basis_set.center_charges))
+        return (n_atoms, nuclear_charge)
+
+    def print_orbitals(self, desym=False, types=None, erange=None, pattern=None,
                        kind='restricted', order=None):
 
-        if kind == 'restricted':
-            orbitals = self.mos_restricted
-        elif kind == 'alpha':
-            orbitals = self.mos_alpha
-        elif kind == 'beta':
-            orbitals = self.mos_beta
-        else:
+        try:
+            orbitals = self.mo[kind]
+        except KeyError:
             raise Error('invalid orbital kind parameter')
 
         if types is not None:
@@ -448,93 +477,99 @@ class Wavefunction():
         if order is not None:
             orbitals = orbitals.sort_basis(order=order)
 
-        if by_irrep:
-            orbitals.show_by_irrep()
-        else:
+        if desym:
             orbitals.show()
+        else:
+            orbitals.show_by_irrep()
 
-    def guessorb(self):
+    def guessorb(self, kind='restricted'):
         """
         generate a set of initial molecular orbitals
         """
+        guessorb = {}
         Smat_ao = np.asmatrix(self.overlap)
         Fmat_ao = np.asmatrix(self.fockint)
-        C_mo = np.asmatrix(self.mos_restricted.coefficients)
-        E_mo = np.empty(len(self.mos_restricted.energies))
-        irreps = self.mos_restricted.irreps.copy()
-        for irrep in np.unique(irreps):
-            mo_set, = np.where(irreps == irrep)
-            Cmat = C_mo[:,mo_set]
-            Smat_mo = Cmat.T * Smat_ao * Cmat
-            # orthonormalize
-            s,U = np.linalg.eigh(Smat_mo)
-            U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
-            Cmat = Cmat * U_lowdin
-            # diagonalize metric Fock
-            Fmat_mo = Cmat.T * Smat_ao.T * Fmat_ao * Smat_ao * Cmat
-            f,U = np.linalg.eigh(Fmat_mo)
-            Cmat = Cmat * U
-            # copy back to correct supsym id
-            C_mo[:,mo_set] = Cmat
-            E_mo[mo_set] = f
-        # finally, create new orbital set with new coefficients and energies
-        mo_order = np.argsort(E_mo)
-        guess_orbitals = OrbitalSet(C_mo[:,mo_order],
-                                    energies=E_mo[mo_order],
-                                    irreps=irreps[mo_order],
-                                    basis_set=self.mos_restricted.basis_set)
-        return guess_orbitals
+        for kind in self.mo.keys():
+            C_mo = np.asmatrix(self.mo[kind].coefficients)
+            E_mo = np.empty(len(self.mo[kind].energies))
+            irreps = self.mo[kind].irreps.copy()
+            for irrep in np.unique(irreps):
+                mo_set, = np.where(irreps == irrep)
+                Cmat = C_mo[:,mo_set]
+                Smat_mo = Cmat.T * Smat_ao * Cmat
+                # orthonormalize
+                s,U = np.linalg.eigh(Smat_mo)
+                U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
+                Cmat = Cmat * U_lowdin
+                # diagonalize metric Fock
+                Fmat_mo = Cmat.T * Smat_ao.T * Fmat_ao * Smat_ao * Cmat
+                f,U = np.linalg.eigh(Fmat_mo)
+                Cmat = Cmat * U
+                # copy back to correct supsym id
+                C_mo[:,mo_set] = Cmat
+                E_mo[mo_set] = f
+            # finally, create new orbital set with new coefficients and energies
+            mo_order = np.argsort(E_mo)
+            guessorb[kind] = OrbitalSet(C_mo[:,mo_order],
+                                        energies=E_mo[mo_order],
+                                        irreps=irreps[mo_order],
+                                        basis_set=self.mo[kind].basis_set)
+        return Wavefunction(guessorb, self.basis_set)
 
-@export
-def gen_from_mh5(filename):
-    """ Generates a wavefunction from a Molcas HDF5 file """
-    f = mh5.MolcasHDF5(filename, 'r')
+    @classmethod
+    def from_h5(cls, filename):
+        """ Generates a wavefunction from a Molcas HDF5 file """
+        f = MolcasHDF5(filename, 'r')
 
-    n_bas = f.n_bas
+        n_bas = f.n_bas
 
-    if n_bas is None:
-        raise Exception('no basis set size available on file')
+        if n_bas is None:
+            raise Exception('no basis set size available on file')
 
-    n_irreps = len(n_bas)
+        n_irreps = len(n_bas)
 
-    if n_irreps > 1:
-        n_atoms = f.natoms_all()
-        center_labels = f.desym_center_labels()
-        center_charges = f.desym_center_charges()
-        center_coordinates = f.desym_center_coordinates()
-        contracted_ids = f.desym_basis_function_ids()
-        salcs = f.desym_matrix()
-    else:
-        n_atoms = f.natoms_unique()
-        center_labels = f.center_labels()
-        center_charges = f.center_charges()
-        center_coordinates = f.center_coordinates()
-        contracted_ids = f.basis_function_ids()
-        overlap = f.ao_overlap_matrix()
-        fockint = f.ao_fockint_matrix()
-    primitive_ids = f.primitive_ids()
-    primitives = f.primitives()
+        if n_irreps > 1:
+            n_atoms = f.natoms_all()
+            center_labels = f.desym_center_labels()
+            center_charges = f.desym_center_charges()
+            center_coordinates = f.desym_center_coordinates()
+            contracted_ids = f.desym_basis_function_ids()
+            salcs = f.desym_matrix()
+        else:
+            n_atoms = f.natoms_unique()
+            center_labels = f.center_labels()
+            center_charges = f.center_charges()
+            center_coordinates = f.center_coordinates()
+            contracted_ids = f.basis_function_ids()
+            overlap = f.ao_overlap_matrix()
+            fockint = f.ao_fockint_matrix()
+        primitive_ids = f.primitive_ids()
+        primitives = f.primitives()
 
 
-    basis_set = BasisSet(
-            center_labels,
-            center_charges,
-            center_coordinates,
-            contracted_ids,
-            primitive_ids,
-            primitives,
-            )
+        basis_set = BasisSet(
+                center_labels,
+                center_charges,
+                center_coordinates,
+                contracted_ids,
+                primitive_ids,
+                primitives,
+                )
 
-    if n_irreps > 1:
-        irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
-        mo_irreps = lst_to_arr(irrep_list)
-    else:
-        mo_irreps = lst_to_arr(f.supsym_irrep_indices())
+        if n_irreps > 1:
+            irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
+            mo_irreps = lst_to_arr(irrep_list)
+        else:
+            mo_irreps = lst_to_arr(f.supsym_irrep_indices())
 
-    unrestricted = f.unrestricted()
-    if unrestricted:
+        unrestricted = f.unrestricted()
+        if unrestricted:
+            kinds = ['alfa', 'beta']
+        else:
+            kinds = ['restricted']
+
         mo = {}
-        for kind in ('alpha', 'beta'):
+        for kind in kinds:
             mo_occupations = f.mo_occupations(kind=kind)
             mo_energies = f.mo_energies(kind=kind)
             mo_typeindices = f.mo_typeindices(kind=kind)
@@ -545,39 +580,39 @@ def gen_from_mh5(filename):
             mo_typeindices = lst_to_arr(mo_typeindices)
             mo_vectors = la.block_diag(*mo_vectors)
 
+            if n_irreps > 1:
+                mo_vectors = np.dot(salcs, mo_vectors)
+
             mo[kind] = OrbitalSet(mo_vectors,
                                   types=mo_typeindices,
                                   irreps=mo_irreps,
                                   energies=mo_energies,
                                   occupations=mo_occupations,
                                   basis_set=basis_set)
-        mo_alpha = mo['alpha']
-        mo_beta = mo['beta']
-    else:
-        mo_occupations = f.mo_occupations()
-        mo_energies = f.mo_energies()
-        mo_typeindices = f.mo_typeindices()
-        mo_vectors = f.mo_vectors()
 
-        mo_occupations = lst_to_arr(mo_occupations)
-        mo_energies = lst_to_arr(mo_energies)
-        mo_typeindices = lst_to_arr(mo_typeindices)
-        mo_vectors = la.block_diag(*mo_vectors)
-
+        overlap = la.block_diag(*f.ao_overlap_matrix())
+        fockint = la.block_diag(*f.ao_fockint_matrix())
         if n_irreps > 1:
-            mo_vectors = np.dot(salcs, mo_vectors)
+            overlap = np.dot(np.dot(salcs, overlap), salcs.T)
+            fockint = np.dot(np.dot(salcs, fockint), salcs.T)
 
-        mo = OrbitalSet(mo_vectors,
-                        types=mo_typeindices,
-                        irreps=mo_irreps,
-                        energies=mo_energies,
-                        occupations=mo_occupations,
-                        basis_set=basis_set)
+        try:
+            ispin = f.ispin()
+        except DataNotAvailable:
+            ispin = None
 
-    overlap = la.block_diag(*f.ao_overlap_matrix())
-    fockint = la.block_diag(*f.ao_fockint_matrix())
-    if n_irreps > 1:
-        overlap = np.dot(np.dot(salcs, overlap), salcs.T)
-        fockint = np.dot(np.dot(salcs, fockint), salcs.T)
+        return cls(mo, basis_set,
+                   overlap=overlap, fockint=fockint,
+                   spinmult=ispin)
 
-    return Wavefunction(orbitals=mo, overlap=overlap, fockint=fockint)
+    @classmethod
+    def from_inporb(cls, filename):
+        """ Generates a wavefunction from a Molcas INPORB file """
+        f = inporb.MolcasINPORB(filename, 'r')
+
+        n_bas = f.n_bas
+
+        if n_bas is None:
+            raise Exception('no basis set size available on file')
+
+        n_irreps = len(n_bas)
