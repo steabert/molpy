@@ -11,43 +11,41 @@ class MolcasFCHK:
         self.f = open(filename, mode)
 
     def write(self, wfn):
-        wfn = copy.deepcopy(wfn)
-        wfn.desymmetrize()
         self.write_header(
             'Molcas -> gaussian formatted checkpoint',
             'type',
             'method',
             'basis'
             )
+        n_atoms, nuclear_charge = wfn.nuclear_info()
+        n_electrons, n_a, n_b, spinmult, electronic_charge = wfn.electronic_info()
+        charge = nuclear_charge + electronic_charge
         self.write_info(
-            wfn.natoms_unique,
-            wfn.charge,
-            wfn.spin_multiplicity,
-            wfn.nelec,
-            wfn.nelec_a,
-            wfn.nelec_b,
-            wfn.nbas[0],
+            n_atoms,
+            charge,
+            spinmult,
+            n_electrons,
+            n_a,
+            n_b,
+            wfn.basis_set.n_cgto,
             )
-
         self.write_atom_info(
-            wfn.center_charges,
-            wfn.center_coordinates,
+            wfn.basis_set.center_charges,
+            wfn.basis_set.center_coordinates,
             )
         self.write_basisset(
-            wfn.basisset,
-            wfn.center_coordinates,
+            wfn.basis_set.primitive_tree,
+            wfn.basis_set.center_coordinates,
             )
-        self.write_orbitals(
-            wfn.nbas,
-            tools.scalify(wfn.basis_function_ids),
-            tools.scalify(wfn.mo_energies),
-            tools.scalify(wfn.mo_occupations),
-            tools.scalify(wfn.mo_vectors),
-            wfn.uhf,
-            tools.scalify(wfn.mo_energies_b),
-            tools.scalify(wfn.mo_occupations_b),
-            tools.scalify(wfn.mo_vectors_b),
-            )
+        for kind in wfn.mo.keys():
+            orbitals = wfn.mo[kind].sort_basis(order='molden')
+            self.write_orbitals(
+                orbitals,
+                kind=kind,
+                )
+
+    def close(self):
+        self.f.close()
 
     def write_scalar_int(self, name, value):
         self.f.write('{:40s}   {:1s}     {:12d}\n'.format(name, 'I', value))
@@ -161,19 +159,11 @@ class MolcasFCHK:
         self.write_array_real('Contraction coefficients', coefficients)
         self.write_array_real('Coordinates of each shell', shell_coordinates)
 
-    def write_orbitals(self, nbas, ao_labels, ene, occ, coef, uhf, ene_b, occ_b, coef_b):
-        if len(nbas) != 1:
-            raise Error('orbitals contain symmetry!')
-        else:
-            nbas = nbas[0]
-
-        ene = tools.safe_select(ene, np.zeros(nbas))
-
-        ao_order = tools.argsort(ao_labels, rank=tools.rank_ao_tuple_molden)
-        ao_labels = [ao_labels[i] for i in ao_order]
-        self.write_scalar_int('Number of basis functions', nbas)
-        self.write_array_real('Alpha Orbital Energies', ene)
-        self.write_array_real('Alpha MO coefficients', coef[ao_order,:])
-        if uhf:
-            self.write_array_real('Beta Orbital Energies', ene_b)
-            self.write_array_real('Beta MO coefficients', coef_b[ao_order,:])
+    def write_orbitals(self, orbitals, kind='restricted'):
+        self.write_scalar_int('Number of basis functions', orbitals.n_bas)
+        if kind == 'restricted' or kind == 'alfa':
+            prefix = 'Alpha '
+        elif kind == 'beta':
+            prefix = 'Beta '
+        self.write_array_real(prefix + 'Orbital Energies', orbitals.energies)
+        self.write_array_real(prefix + 'MO coefficients', orbitals.coefficients)

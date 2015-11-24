@@ -85,13 +85,7 @@ def lst_to_arr(lst):
 
 def argsort(lst, rank=None):
     """ sort indices of a list """
-    if rank is None:
-        def sortkey(x):
-            return x[1]
-    else:
-        def sortkey(x):
-            return rank(x[1])
-    return np.array([i for i, elem in sorted(enumerate(lst), key=sortkey)])
+    return np.array(sorted(np.arange(len(lst)), key=lst.__getitem__))
 
 
 def seek_line(f, pattern):
@@ -105,87 +99,3 @@ def seek_line(f, pattern):
 def ordered_list(lst):
     """ create a dictionary representing an ordered list """
     return dict([(item, idx) for idx, item, in enumerate(lst)])
-
-angmom_name = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n']
-l_index = ordered_list(angmom_name)
-
-
-def filter_ao_labels(ao_labels, pattern=None, mx_angmom=None):
-    if pattern is not None:
-        label_match = np.vectorize(lambda lbl: bool(re.search(pattern, lbl)))
-        indices, = np.where(label_match(ao_labels))
-    elif mx_angmom is not None:
-        label_match = np.vectorize(lambda lbl: l_index[lbl[7]])
-        indices, = np.where(label_match(ao_labels) <= mx_angmom)
-    else:
-        indices = np.arange(len(ao_labels))
-    return indices
-
-
-def filter_mo_typeindices(mo_typeindices, typeids):
-    if typeids is not None:
-        pattern = '[' + ''.join(typeids) + ']'
-        label_match = np.vectorize(lambda lbl: bool(re.match(pattern, lbl)))
-        indices, = np.where(label_match(mo_typeindices))
-    else:
-        indices = np.arange(len(mo_typeindices))
-    return indices
-
-lenin = 6
-lenin4 = lenin + 4
-
-
-def rank_ao_tuple_molcas(ao_tuple):
-    """
-    rank a basis tuple according to Molcas ordering
-
-    angmom components are ranked as (...,-2,-1,0,+1,+2,...)
-    """
-    center, n, l, m, = ao_tuple
-    if l == 1 and m == 1:
-        m = -2
-    return (center, l, m, n)
-
-
-def rank_ao_tuple_molden(ao_tuple):
-    """
-    rank a basis tuple according to Molden/Gaussian ordering
-
-    angmom components are ranked as (0,1+,1-, 2+,2-,...)
-    """
-    center, n, l, m, = ao_tuple
-    if l == 1 and m == 0:
-        m = 2
-    if m < 0:
-        m = -m + 0.5
-    return (center, l, n, m)
-
-
-def format_ao_tuple(ao_tuple, center_labels):
-    """ convert a basis function ID into a human-readable label """
-    c, n, l, m, = ao_tuple
-    center_lbl = center_labels[c-1]
-    n_lbl = str(n+l) if n+l < 10 else '*'
-    l_lbl = angmom_name[l]
-    if l == 0:
-        m_lbl = ''
-    elif l == 1:
-        m_lbl = ['y','z','x'][m+1]
-    else:
-        m_lbl = str(m)[::-1]
-    return '{:6s}{:1s}{:1s}{:2s}'.format(center_lbl, n_lbl, l_lbl, m_lbl)
-
-
-def safe_select(variable, fallback):
-    """ return variable or fall back to value """
-    if variable is not None:
-        return variable
-    else:
-        return fallback
-
-
-def scalify(lst):
-    if lst is not None:
-        return lst if len(lst) != 1 else lst[0]
-    else:
-        return None
