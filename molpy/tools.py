@@ -85,13 +85,7 @@ def lst_to_arr(lst):
 
 def argsort(lst, rank=None):
     """ sort indices of a list """
-    if rank is None:
-        def sortkey(x):
-            return x[1]
-    else:
-        def sortkey(x):
-            return rank(x[1])
-    return np.array([i for i, elem in sorted(enumerate(lst), key=sortkey)])
+    return np.array(sorted(np.arange(len(lst)), key=lst.__getitem__))
 
 
 def seek_line(f, pattern):
@@ -105,28 +99,3 @@ def seek_line(f, pattern):
 def ordered_list(lst):
     """ create a dictionary representing an ordered list """
     return dict([(item, idx) for idx, item, in enumerate(lst)])
-
-angmom_name = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n']
-l_index = ordered_list(angmom_name)
-
-
-def filter_ao_labels(ao_labels, pattern=None, mx_angmom=None):
-    if pattern is not None:
-        label_match = np.vectorize(lambda lbl: bool(re.search(pattern, lbl)))
-        indices, = np.where(label_match(ao_labels))
-    elif mx_angmom is not None:
-        label_match = np.vectorize(lambda lbl: l_index[lbl[7]])
-        indices, = np.where(label_match(ao_labels) <= mx_angmom)
-    else:
-        indices = np.arange(len(ao_labels))
-    return indices
-
-
-def filter_mo_typeindices(mo_typeindices, typeids):
-    if typeids is not None:
-        pattern = '[' + ''.join(typeids) + ']'
-        label_match = np.vectorize(lambda lbl: bool(re.match(pattern, lbl)))
-        indices, = np.where(label_match(mo_typeindices))
-    else:
-        indices = np.arange(len(mo_typeindices))
-    return indices
