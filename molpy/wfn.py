@@ -430,6 +430,8 @@ class Wavefunction():
         '''
         return a tuple containing the total number of electrons, the number of
         alpha electrons, the number of beta electrons, and the spin multiplicity.
+        When occupation numbers are not available (i.e. NaNs), the number of
+        electrons will be set to represent a neutral system.
         '''
         if 'alfa' in self.mo and 'beta' in self.mo:
             n_alfa = int(np.sum(self.mo['alfa'].occupations))
@@ -440,10 +442,7 @@ class Wavefunction():
             else:
                 spinmult = self.spinmult
         elif 'restricted' in self.mo:
-            try:
-                n_electrons = int(np.sum(self.mo['restricted'].occupations))
-            except ValueError:
-                n_electrons = 0
+            n_electrons = np.sum(self.mo['restricted'].occupations)
             if self.spinmult is None:
                 spinmult = 1
             else:

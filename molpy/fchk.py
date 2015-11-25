@@ -18,8 +18,17 @@ class MolcasFCHK:
             'basis'
             )
         n_atoms, nuclear_charge = wfn.nuclear_info()
+        assert not np.isnan(nuclear_charge)
         n_electrons, n_a, n_b, spinmult, electronic_charge = wfn.electronic_info()
-        charge = nuclear_charge + electronic_charge
+        if np.isnan(spinmult):
+            spinmult = 1
+        if np.isnan(electronic_charge):
+            charge = 0
+            n_electrons = int(nuclear_charge)
+            n_b = (n_electrons - (spinmult - 1)) // 2
+            n_a = n_electrons - n_b
+        else:
+            charge = nuclear_charge + electronic_charge
         self.write_info(
             n_atoms,
             charge,
