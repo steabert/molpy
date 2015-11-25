@@ -52,6 +52,7 @@ class MolcasINPORB():
         self.write_info(1, [wfn.basis_set.n_cgto])
         for kind in wfn.mo.keys():
             orbitals = wfn.mo[kind]
+            orbitals.sanitize()
             self.write_orb([orbitals.coefficients], kind=kind)
             self.write_occ([orbitals.occupations], kind=kind)
             self.write_one([orbitals.energies], kind=kind)

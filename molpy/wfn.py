@@ -428,6 +428,19 @@ class OrbitalSet():
 
         return self.filter_basis(np.asarray(matching))
 
+    def sanitize(self):
+        """
+        Sanitize the orbital data, replacing NaN or missing values with safe
+        placeholders.
+        """
+        for attribute in ['occupations', 'energies', 'coefficients']:
+            array = getattr(self, attribute)
+            selection = np.where(np.isnan(self.occupations))
+            array[selection] = 0.0
+
+        selection = np.where(self.types == '-')
+        self.types[selection] = 's'
+
 
 @export
 class Wavefunction():
