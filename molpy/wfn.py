@@ -500,7 +500,12 @@ class Wavefunction():
 
     def print_orbitals(self, types=None, erange=None, pattern=None, order=None):
 
-        for kind, orbitals in self.mo.items():
+        for kind in ('restricted', 'alfa', 'beta'):
+            if kind not in self.mo:
+                continue
+            else:
+                orbitals = self.mo[kind]
+
             if types is not None:
                 orbitals = orbitals.type(*types)
 
