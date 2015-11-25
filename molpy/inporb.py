@@ -124,7 +124,7 @@ class MolcasINPORB():
             norb = coef.shape[0]
             for jorb in range(norb):
                 self.f.write('* ORBITAL{:5d}{:5d}\n'.format(isym+1,jorb+1))
-                self._write_blocked(np.ravel(coef[:,jorb]), self.orb_fmt)
+                self._write_blocked(np.ravel(coef[:,jorb]), self.orb_fmt, blocksize=self.orb_blk_size)
 
     def write_occ(self, mo_occupations, kind='restricted'):
 
@@ -193,6 +193,18 @@ class MolcasINPORB():
     @staticmethod
     def _format_header(header, kind='restricted'):
         if kind == 'beta':
-            return '#U' + header
+            return '#U' + header + '\n'
         else:
-            return '#' + header
+            return '#' + header + '\n'
+
+
+@export
+class MolcasINPORB11(MolcasINPORB):
+    def __init__(self, filename, mode):
+        super().__init__(filename, mode, version='1.1')
+
+
+@export
+class MolcasINPORB20(MolcasINPORB):
+    def __init__(self, filename, mode):
+        super().__init__(filename, mode, version='2.0')
