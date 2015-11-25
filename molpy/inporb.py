@@ -183,7 +183,7 @@ class MolcasINPORB():
         """
         if enum:
             for idx, offset in enumerate(range(0, len(arr), blocksize)):
-                prefix = '{:1d} '.format(idx)
+                prefix = '{:1d} '.format(idx % 10)
                 line = ''.join(fmt.format(i) for i in arr[offset:offset+blocksize])
                 self.f.write(prefix + line + '\n')
         else:
