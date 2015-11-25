@@ -189,16 +189,28 @@ class BasisSet():
         Reorder the supplied ids of the contracted functions by either
         Molcas or Molden/Gaussian ranking and return an array of indices.
         """
-
         if ids is None:
             ids = np.arange(self.n_cgto)
 
         if order == 'molcas':
-            return self.cgto_molcas_indices[ids]
+            selection = self.cgto_molcas_indices[ids]
         elif order == 'molden':
-            return self.cgto_molden_indices[ids]
+            selection = self.cgto_molden_indices[ids]
         else:
             raise Error('invalid order parameter')
+        return selection
+
+    def angmom_ids(self, ids=None, limit=3):
+        """
+        Limit the basis ids by angular momentum. The default is to limit up
+        to f functions (angular momentum 3).
+        """
+        if ids is None:
+            ids = np.arange(self.n_cgto)
+
+        cgto_angmom_ids = self.contracted_ids[ids,2]
+        selection, = np.where(cgto_angmom_ids <= limit)
+        return ids[selection]
 
 
 @export
@@ -292,6 +304,11 @@ class OrbitalSet():
     def sort_basis(self, order='molcas'):
 
         ids = self.basis_set.argsort_ids(self.basis_ids, order=order)
+        return self.filter_basis(ids)
+
+    def limit_basis(self, limit=3):
+
+        ids = self.basis_set.angmom_ids(self.basis_ids, limit=limit)
         return self.filter_basis(ids)
 
     def __str__(self):

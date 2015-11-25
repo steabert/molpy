@@ -7,6 +7,8 @@ import numpy as np
 @export
 class MolcasFCHK:
 
+    max_angmom = 3
+
     def __init__(self, filename, mode):
         self.f = open(filename, mode)
 
@@ -47,7 +49,8 @@ class MolcasFCHK:
             wfn.basis_set.center_coordinates,
             )
         for kind in wfn.mo.keys():
-            orbitals = wfn.mo[kind].sort_basis(order='molden')
+            orbitals = wfn.mo[kind].sort_basis(order='molden').limit_basis(limit=max_angmom)
+            orbitals.show()
             self.write_orbitals(
                 orbitals,
                 kind=kind,
@@ -129,6 +132,8 @@ class MolcasFCHK:
         primitive_shells = 0
         for center in basisset:
             for angmom in center['angmoms']:
+                if angmom['value'] > max_angmom:
+                    continue
                 highest_angmom = max(angmom['value'], highest_angmom)
                 contracted_shells += len(angmom['shells'])
                 for shell in angmom['shells']:
@@ -149,6 +154,8 @@ class MolcasFCHK:
         offset = 0
         for center in basisset:
             for angmom in center['angmoms']:
+                if angmom['value'] > max_angmom:
+                    continue
                 highest_angmom = max(angmom['value'], highest_angmom)
                 contracted_shells += len(angmom['shells'])
                 for shell in angmom['shells']:
