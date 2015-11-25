@@ -142,7 +142,7 @@ def driver():
     base, ext = os.path.splitext(args.infile)
 
     if args.guessorb:
-        if wfn.overlap is None or wfn.fockint is none:
+        if wfn.overlap is None or wfn.fockint is None:
             print('You cannot create guess orbitals without access to both\n'
                   'the atomic overlap matrix and fockint matrix. Most probably\n'
                   'you are using the Molcas INPORB file which does not have\n'
