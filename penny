@@ -40,7 +40,7 @@ def argument_parser():
         '-c',
         '--convert',
         type=str,
-        choices=('inporb11', 'inporb20', 'h5', 'fchk', 'molden'),
+        choices=('inporb', 'inporb11', 'inporb20', 'h5', 'fchk', 'molden'),
         help='output format'
         )
     parser.add_argument(
@@ -160,6 +160,7 @@ def driver():
             sys.exit(1)
         FileFormat = {
             'h5': molpy.MolcasHDF5,
+            'inporb': molpy.MolcasINPORB,
             'inporb11': molpy.MolcasINPORB11,
             'inporb20': molpy.MolcasINPORB20,
             'molden': molpy.MolcasMOLDEN,
