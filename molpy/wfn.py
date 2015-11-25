@@ -322,7 +322,6 @@ class OrbitalSet():
         str_template = prefix + self.n_orb * '{:>10s}'
 
         lines = []
-        lines.append('')
 
         line = int_template.format("ID", *self.ids)
         lines.append(line)
@@ -353,6 +352,8 @@ class OrbitalSet():
             line = float_template.format(labels[ibas], *np.ravel(self.coefficients[ibas,:]))
             lines.append(line)
 
+        lines.append('')
+
         return '\n'.join(lines)
 
     def show(self, cols=10):
@@ -368,7 +369,7 @@ class OrbitalSet():
 
         if self.n_irreps > 1:
             for irrep in range(self.n_irreps):
-                print('symmetry {:d}'.format(irrep))
+                print('symmetry {:d}'.format(irrep+1))
                 print()
                 indices, = np.where(self.irreps == irrep)
                 self[indices].sorted(reindex=True).show(cols=cols)
