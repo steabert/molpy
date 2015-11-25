@@ -4,9 +4,12 @@ from .tools import *
 
 @export
 class MolcasINPORB():
-
+    """
+    Handle reading and writing of Molcas INPORB files. These are the default
+    formatted orbital files used by any Molcas program modules.
+    """
     def __init__(self, filename, mode, version='2.0'):
-        """ initialize from a file object """
+        """ initialize the INPORB file and prepare for reading or writing """
         self.f = open(filename, mode)
 
         if mode.startswith('r'):

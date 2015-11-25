@@ -226,8 +226,6 @@ class OrbitalSet():
         self.coefficients = np.asmatrix(coefficients)
         self.n_bas = coefficients.shape[0]
         self.n_orb = coefficients.shape[1]
-        assert self.n_bas != 0
-        assert self.n_orb != 0
 
         if irreps is None:
             self.irreps = np.zeros(self.n_bas)
@@ -360,6 +358,9 @@ class OrbitalSet():
         """
         prints the entire orbital set in blocks of cols orbitals
         """
+
+        if self.n_orb == 0:
+            print('no orbitals to show... perhaps you filtered too strictly?')
 
         for offset in range(0, self.n_orb, cols):
             orbitals = self[offset:offset+cols]
@@ -497,30 +498,26 @@ class Wavefunction():
         nuclear_charge = int(np.sum(self.basis_set.center_charges))
         return (n_atoms, nuclear_charge)
 
-    def print_orbitals(self, types=None, erange=None, pattern=None,
-                       kind='restricted', order=None):
+    def print_orbitals(self, types=None, erange=None, pattern=None, order=None):
 
-        try:
-            orbitals = self.mo[kind]
-        except KeyError:
-            raise Error('invalid orbital kind parameter')
+        for kind, orbitals in self.mo.items():
+            if types is not None:
+                orbitals = orbitals.type(*types)
 
-        if types is not None:
-            orbitals = orbitals.type(*types)
+            if erange is not None:
+                orbitals = orbitals.erange(*erange)
 
-        if erange is not None:
-            orbitals = orbitals.erange(*erange)
+            if pattern is not None:
+                orbitals = orbitals.pattern(pattern)
 
-        if pattern is not None:
-            orbitals = orbitals.pattern(pattern)
+            if order is not None:
+                orbitals = orbitals.sort_basis(order=order)
 
-        if order is not None:
-            orbitals = orbitals.sort_basis(order=order)
-
-        if self.n_sym > 1:
-            orbitals.show_by_irrep()
-        else:
-            orbitals.show()
+            self._print_mo_header(kind=kind)
+            if self.n_sym > 1:
+                orbitals.show_by_irrep()
+            else:
+                orbitals.show()
 
     def guessorb(self, kind='restricted'):
         """
@@ -583,6 +580,17 @@ class Wavefunction():
             population_total = population['restricted']
         mulliken_charges = self.basis_set.center_charges - population_total
         return mulliken_charges
+
+    @staticmethod
+    def _print_mo_header(kind=None, width=128, delim='*'):
+        if kind is not None:
+            text = kind + ' molecular orbitals'
+        else:
+            text = 'molecular orbitals'
+        starline = delim * width
+        starskip = delim + ' ' * (width - 2) + delim
+        titleline = delim + text.title().center(width - 2, ' ') + delim
+        print('\n'.join([starline, starskip, titleline, starskip, starline, '']))
 
     @classmethod
     def from_h5(cls, filename):

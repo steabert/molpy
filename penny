@@ -143,27 +143,20 @@ def driver():
 
     if args.guessorb:
         if wfn.overlap is None or wfn.fockint is none:
-            print('''
-You cannot create guess orbitals without access to both
-the atomic overlap matrix and fockint matrix. Most probably
-you are using the Molcas INPORB file which does not have
-the necessary data. Please use a Molcas HDF5 file instead.
-            ''')
+            print('You cannot create guess orbitals without access to both\n'
+                  'the atomic overlap matrix and fockint matrix. Most probably\n'
+                  'you are using the Molcas INPORB file which does not have\n'
+                  'the necessary data. Please use a Molcas HDF5 file instead.')
         else:
             wfn = wfn.guessorb()
 
     if args.convert:
         outpath = args.outfile or '.'.join((base, args.convert))
         if os.path.isfile(outpath) and not args.force:
-            print(
-                """
-                the requested output file already exists
-
-                To continue, please remove the file, use the
-                -f/--force option to overwrite the file, or
-                give another name with the -o/--outfile option
-                """
-                )
+            print('The requested output file already exists.\n'
+                  'To continue, please remove the file, use the\n'
+                  '-f/--force option to overwrite the file, or\n'
+                  'give another name with the -o/--outfile option.')
             sys.exit(1)
         FileFormat = {
             'h5': molpy.MolcasHDF5,
@@ -177,7 +170,6 @@ the necessary data. Please use a Molcas HDF5 file instead.
         f.close()
 
     if args.print_orbitals:
-        molpy.tools.print_header('Molecular Orbitals')
         wfn.print_orbitals(types=args.typeids, pattern=args.match)
 
     if args.supsym:
