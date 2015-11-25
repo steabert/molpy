@@ -435,7 +435,7 @@ class OrbitalSet():
         """
         for attribute in ['occupations', 'energies', 'coefficients']:
             array = getattr(self, attribute)
-            selection = np.where(np.isnan(self.occupations))
+            selection = np.where(np.isnan(array))
             array[selection] = 0.0
 
         selection = np.where(self.types == '-')
