@@ -492,7 +492,7 @@ class Wavefunction():
         nuclear_charge = int(np.sum(self.basis_set.center_charges))
         return (n_atoms, nuclear_charge)
 
-    def print_orbitals(self, desym=False, types=None, erange=None, pattern=None,
+    def print_orbitals(self, types=None, erange=None, pattern=None,
                        kind='restricted', order=None):
 
         try:
@@ -512,10 +512,10 @@ class Wavefunction():
         if order is not None:
             orbitals = orbitals.sort_basis(order=order)
 
-        if desym:
-            orbitals.show()
-        else:
+        if self.n_sym > 1:
             orbitals.show_by_irrep()
+        else:
+            orbitals.show()
 
     def guessorb(self, kind='restricted'):
         """

@@ -165,7 +165,7 @@ def driver():
 
     if args.print_orbitals:
         molpy.tools.print_header('Molecular Orbitals')
-        wfn.print_orbitals(types=args.typeids, pattern=args.match, desym=args.desymmetrize)
+        wfn.print_orbitals(types=args.typeids, pattern=args.match)
 
     if args.supsym:
         for kind in wfn.mo.keys():
