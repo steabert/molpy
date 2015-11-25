@@ -448,6 +448,12 @@ class Wavefunction():
                  overlap=None, fockint=None,
                  spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
+        if 'alfa' in mo and 'beta' in mo:
+            self.unrestricted = True
+        elif 'restricted' in mo:
+            self.unrestricted = False
+        else:
+            raise Exception('invalid key(s) in mo dict')
         self.basis_set = basis_set
         self.salcs = salcs
         self.overlap = overlap
@@ -463,7 +469,7 @@ class Wavefunction():
         When occupation numbers are not available (i.e. NaNs), the number of
         electrons will be set to represent a neutral system.
         '''
-        if 'alfa' in self.mo and 'beta' in self.mo:
+        if self.unrestricted:
             n_alfa = int(np.sum(self.mo['alfa'].occupations))
             n_beta = int(np.sum(self.mo['beta'].occupations))
             n_electrons = n_alfa + n_beta
@@ -471,7 +477,7 @@ class Wavefunction():
                 spinmult = n_alfa - n_beta + 1
             else:
                 spinmult = self.spinmult
-        elif 'restricted' in self.mo:
+        else:
             n_electrons = np.sum(self.mo['restricted'].occupations)
             if self.spinmult is None:
                 spinmult = 1
@@ -479,8 +485,6 @@ class Wavefunction():
                 spinmult = self.spinmult
             n_beta = (n_electrons - (spinmult - 1)) // 2
             n_alfa = n_electrons - n_beta
-        else:
-            raise InvalidRequest('orbital dict does not contain valid keys')
         electronic_charge = -n_electrons
         return (n_electrons, n_alfa, n_beta, spinmult, electronic_charge)
 
@@ -550,6 +554,34 @@ class Wavefunction():
                                         irreps=irreps[mo_order],
                                         basis_set=self.mo[kind].basis_set)
         return Wavefunction(guessorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
+
+    def mulliken(self):
+        """
+        perform a mulliken population analysis
+        """
+        if self.overlap is not None:
+            Smat_ao = np.asmatrix(self.overlap)
+        else:
+            raise Exception('mulliken analysis is missing the overlap matrix')
+
+        population = {}
+        for kind, mo in self.mo.items():
+            population[kind] = np.zeros(len(self.basis_set.center_charges))
+            Cmat = np.asmatrix(mo.coefficients)
+            D = Cmat * np.diag(mo.occupations) * Cmat.T
+            DS = np.multiply(D, Smat_ao)
+            for i, (ao, basis_id) in enumerate(zip(np.asarray(DS), mo.basis_ids)):
+                pop = np.sum(ao)
+                cgto_tuple = mo.basis_set.contracted_ids[basis_id]
+                center_id, l, n, m = cgto_tuple
+                population[kind][center_id-1] += pop
+
+        if self.unrestricted:
+            population_total = population['alfa'] + population['beta']
+        else:
+            population_total = population['restricted']
+        mulliken_charges = self.basis_set.center_charges - population_total
+        return mulliken_charges
 
     @classmethod
     def from_h5(cls, filename):

@@ -128,7 +128,7 @@ class MolcasHDF5:
         try:
             orbital_type = self.maybe_fetch_attr('ORBITAL_TYPE')
             if orbital_type.decode().endswith('UHF'):
-                is_unrestructed = True
+                is_unrestricted = True
             else:
                 is_unrestricted = False
         except DataNotAvailable:
@@ -149,7 +149,7 @@ class MolcasHDF5:
             raise InvalidRequest('RHF wavefunction has no alpha/beta orbitals')
 
         attribute_prefix = 'MO_'
-        if kind == 'alpha':
+        if kind == 'alfa':
             attribute_prefix += 'ALPHA_'
         elif kind == 'beta':
             attribute_prefix += 'BETA_'
@@ -213,7 +213,7 @@ class MolcasHDF5:
         try:
             indices = self.maybe_fetch_dset('SUPSYM_IRREP_INDICES')
         except DataNotAvailable:
-            indices = np.empty(sum(self.n_bas**2), dtype=float64)
+            indices = np.empty(sum(self.n_bas**2), dtype=np.float64)
             indices.fill(np.nan)
         return arr_to_lst(indices, self.n_bas)
 
