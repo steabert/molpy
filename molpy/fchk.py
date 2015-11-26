@@ -2,6 +2,7 @@ from . import export
 from . import tools
 import copy
 import numpy as np
+from .errors import DataNotAvailable
 
 
 @export
@@ -13,6 +14,8 @@ class MolcasFCHK:
         self.f = open(filename, mode)
 
     def write(self, wfn):
+        if wfn.basis_set is None:
+            raise DataNotAvailable('The fchk format needs basis set info.')
         self.write_header(
             'Molcas -> gaussian formatted checkpoint',
             'type',
