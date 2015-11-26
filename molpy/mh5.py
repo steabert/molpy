@@ -152,7 +152,7 @@ class MolcasHDF5:
             raise InvalidRequest('RHF wavefunction has no alpha/beta orbitals')
 
         attribute_prefix = 'MO_'
-        if kind == 'alfa':
+        if kind == 'alpha':
             attribute_prefix += 'ALPHA_'
         elif kind == 'beta':
             attribute_prefix += 'BETA_'

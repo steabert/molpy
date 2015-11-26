@@ -450,7 +450,7 @@ class Wavefunction():
                  overlap=None, fockint=None,
                  spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
-        if 'alfa' in mo and 'beta' in mo:
+        if 'alpha' in mo and 'beta' in mo:
             self.unrestricted = True
         elif 'restricted' in mo:
             self.unrestricted = False
@@ -472,11 +472,11 @@ class Wavefunction():
         electrons will be set to represent a neutral system.
         '''
         if self.unrestricted:
-            n_alfa = int(np.sum(self.mo['alfa'].occupations))
+            n_alpha = int(np.sum(self.mo['alpha'].occupations))
             n_beta = int(np.sum(self.mo['beta'].occupations))
-            n_electrons = n_alfa + n_beta
+            n_electrons = n_alpha + n_beta
             if self.spinmult is None:
-                spinmult = n_alfa - n_beta + 1
+                spinmult = n_alpha - n_beta + 1
             else:
                 spinmult = self.spinmult
         else:
@@ -486,9 +486,9 @@ class Wavefunction():
             else:
                 spinmult = self.spinmult
             n_beta = (n_electrons - (spinmult - 1)) // 2
-            n_alfa = n_electrons - n_beta
+            n_alpha = n_electrons - n_beta
         electronic_charge = -n_electrons
-        return (n_electrons, n_alfa, n_beta, spinmult, electronic_charge)
+        return (n_electrons, n_alpha, n_beta, spinmult, electronic_charge)
 
     def nuclear_info(self):
         '''
@@ -500,7 +500,7 @@ class Wavefunction():
 
     def print_orbitals(self, types=None, erange=None, pattern=None, order=None):
 
-        for kind in ('restricted', 'alfa', 'beta'):
+        for kind in ('restricted', 'alpha', 'beta'):
             if kind not in self.mo:
                 continue
             else:
@@ -581,7 +581,7 @@ class Wavefunction():
                 population[kind][center_id-1] += pop
 
         if self.unrestricted:
-            population_total = population['alfa'] + population['beta']
+            population_total = population['alpha'] + population['beta']
         else:
             population_total = population['restricted']
         mulliken_charges = self.basis_set.center_charges - population_total
@@ -646,7 +646,7 @@ class Wavefunction():
 
         unrestricted = f.unrestricted()
         if unrestricted:
-            kinds = ['alfa', 'beta']
+            kinds = ['alpha', 'beta']
         else:
             kinds = ['restricted']
 
@@ -704,7 +704,7 @@ class Wavefunction():
 
         unrestricted = f.unrestricted
         if unrestricted:
-            kinds = ['alfa', 'beta']
+            kinds = ['alpha', 'beta']
         else:
             kinds = ['restricted']
 

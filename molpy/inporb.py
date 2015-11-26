@@ -63,7 +63,7 @@ class MolcasINPORB():
         self.write_version(self.version)
         if wfn.unrestricted:
             uhf = 1
-            kinds = ['alfa', 'beta']
+            kinds = ['alpha', 'beta']
         else:
             uhf = 0
             kinds = ['restricted']

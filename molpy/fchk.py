@@ -52,7 +52,7 @@ class MolcasFCHK:
             wfn.basis_set.center_coordinates,
             )
         if wfn.unrestricted:
-            kinds = ['alfa', 'beta']
+            kinds = ['alpha', 'beta']
         else:
             kinds = ['restricted']
         for kind in kinds:
@@ -185,7 +185,7 @@ class MolcasFCHK:
 
     def write_orbitals(self, orbitals, kind='restricted'):
         self.write_scalar_int('Number of basis functions', orbitals.n_bas)
-        if kind == 'restricted' or kind == 'alfa':
+        if kind == 'restricted' or kind == 'alpha':
             prefix = 'Alpha '
         elif kind == 'beta':
             prefix = 'Beta '
