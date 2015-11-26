@@ -56,26 +56,32 @@ class MolcasINPORB():
         else:
             raise Exception('invalid version number')
 
-    def read(self):
-        self.read_info()
-        self.read_orb()
-        self.read_occ()
-        self.read_one()
-        self.read_index()
-
     def write(self, wfn):
         self.write_version(self.version)
-        self.write_info(1, [wfn.basis_set.n_cgto])
-        for kind in wfn.mo.keys():
+        if wfn.unrestricted:
+            uhf = 1
+            kinds = ['alfa', 'beta']
+        else:
+            uhf = 0
+            kinds = ['restricted']
+        self.write_info(uhf, wfn.n_sym, [wfn.basis_set.n_cgto])
+        for kind in kinds:
             orbitals = wfn.mo[kind]
             orbitals.sanitize()
-            self.write_orb([orbitals.coefficients], kind=kind)
-            self.write_occ([orbitals.occupations], kind=kind)
-            self.write_one([orbitals.energies], kind=kind)
-            self.write_index([orbitals.types], kind=kind)
+        for kind in kinds:
+            self.write_orb([wfn.mo[kind].coefficients], kind=kind)
+        for kind in kinds:
+            self.write_occ([wfn.mo[kind].occupations], kind=kind)
+        for kind in kinds:
+            self.write_one([wfn.mo[kind].energies], kind=kind)
+        for kind in kinds:
+            self.write_index([wfn.mo[kind].types], kind=kind)
 
     def close(self):
         self.f.close()
+
+    def rewind(self):
+        self.f.seek(0)
 
     def read_orb(self, kind='restricted'):
 
