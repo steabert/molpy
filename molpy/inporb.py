@@ -25,7 +25,11 @@ class MolcasINPORB():
             line = seek_line(self.f, '#INPORB')
             self.version = line.split()[1]
             seek_line(self.f, '#INFO')
-            self.unrestricted, self.n_sym, self.wfn_type = (int(val) for val in self._next_noncomment().split())
+            uhf, self.n_sym, self.wfn_type = (int(val) for val in self._next_noncomment().split())
+            if uhf == 1:
+                self.unrestricted = True
+            else:
+                self.unrestricted = False
             self.n_bas = np.array(self._next_noncomment().split(), dtype=np.int)
             self.n_orb = np.array(self._next_noncomment().split(), dtype=np.int)
         elif mode.startswith('w'):
