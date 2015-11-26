@@ -62,7 +62,7 @@ class MolcasFCHK:
         self.f.close()
 
     def write_scalar_int(self, name, value):
-        self.f.write('{:40s}   {:1s}     {:12d}\n'.format(name, 'I', value))
+        self.f.write('{:40s}   {:1s}     {:12d}\n'.format(name, 'I', int(value)))
 
     def write_scalar_real(self, name, value):
         self.f.write('{:40s}   {:1s}     {:22.15e}\n'.format(name, 'I', value))
