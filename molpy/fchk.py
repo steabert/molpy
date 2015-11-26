@@ -51,8 +51,14 @@ class MolcasFCHK:
             wfn.basis_set.primitive_tree,
             wfn.basis_set.center_coordinates,
             )
-        for kind in wfn.mo.keys():
-            orbitals = wfn.mo[kind].sort_basis(order='molden').limit_basis(limit=self.max_angmom)
+        if wfn.unrestricted:
+            kinds = ['alfa', 'beta']
+        else:
+            kinds = ['restricted']
+        for kind in kinds:
+            orbitals = wfn.mo[kind].sort_basis(order='molden')
+            orbitals = orbitals.limit_basis(limit=self.max_angmom)
+            orbitals.sanitize()
             self.write_orbitals(
                 orbitals,
                 kind=kind,
