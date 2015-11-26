@@ -184,8 +184,8 @@ class MolcasINPORB():
         """
         arr = np.empty(size)
         for offset in range(0, size, blk_size):
-            line = self._next_noncomment()
-            values = [line[sta:sta+18] for sta in range(0,72,18)]
+            line = self._next_noncomment().rstrip()
+            values = [line[sta:sta+18] for sta in range(0,len(line),18)]
             arr[offset:offset+blk_size] = np.array(values, dtype=np.float64)
         return arr
 
