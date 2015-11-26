@@ -154,6 +154,7 @@ def driver():
                   'the atomic overlap matrix and fockint matrix. Most probably\n'
                   'you are using the Molcas INPORB file which does not have\n'
                   'the necessary data. Please use a Molcas HDF5 file instead.')
+            sys.exit(1)
         else:
             wfn = wfn.guessorb()
 
