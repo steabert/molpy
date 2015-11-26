@@ -210,7 +210,7 @@ class BasisSet():
 
         cgto_angmom_ids = self.contracted_ids[ids,2]
         selection, = np.where(cgto_angmom_ids <= limit)
-        return ids[selection]
+        return selection
 
 
 @export
