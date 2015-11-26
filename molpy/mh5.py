@@ -10,6 +10,9 @@ class MolcasHDF5:
 
     def __init__(self, filename, mode):
         """ initialize the HDF5 file object """
+        if mode.startswith('r') and not h5py.is_hdf5(filename):
+            raise InvalidRequest
+
         self.h5f = h5py.File(filename, mode)
 
         if mode.startswith('r'):

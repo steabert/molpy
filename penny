@@ -133,11 +133,18 @@ def driver():
                 give another name with the -o/--outfile option
                 """)
 
-    filename = args.infile
-    if (filename.endswith('.h5')):
-        wfn = molpy.Wavefunction.from_h5(filename)
-    else:
-        wfn = molpy.Wavefunction.from_inporb(filename)
+    if not os.path.isfile(args.infile):
+        print('The input file does not exist.')
+        sys.exit(1)
+    try:
+        wfn = molpy.Wavefunction.from_h5(args.infile)
+    except molpy.InvalidRequest:
+        try:
+            wfn = molpy.Wavefunction.from_inporb(args.infile)
+        except molpy.InvalidRequest:
+            print('You seem to be trying to read a file that is neither\n'
+                  'an HDF5 or INPORB file, or it does not exist.')
+            sys.exit(1)
 
     base, ext = os.path.splitext(args.infile)
 

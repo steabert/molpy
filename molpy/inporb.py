@@ -1,5 +1,6 @@
 from . import export
 from .tools import *
+from .errors import InvalidRequest
 
 
 @export
@@ -9,7 +10,15 @@ class MolcasINPORB():
     formatted orbital files used by any Molcas program modules.
     """
     def __init__(self, filename, mode, version='2.0'):
-        """ initialize the INPORB file and prepare for reading or writing """
+        """
+        initialize the INPORB file and prepare for reading or writing
+        """
+        if mode.startswith('r'):
+            with open(filename, 'r') as f:
+                firstline = next(f)
+            if not firstline.startswith('#INPORB'):
+                raise InvalidRequest
+
         self.f = open(filename, mode)
 
         if mode.startswith('r'):
