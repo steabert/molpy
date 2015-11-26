@@ -709,6 +709,7 @@ class Wavefunction():
 
         mo = {}
         for kind in kinds:
+            f.rewind()
             mo_vectors = f.read_orb(kind=kind)
             mo_occupations = f.read_occ(kind=kind)
             mo_energies = f.read_one(kind=kind)
