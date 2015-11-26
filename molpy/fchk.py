@@ -49,8 +49,7 @@ class MolcasFCHK:
             wfn.basis_set.center_coordinates,
             )
         for kind in wfn.mo.keys():
-            orbitals = wfn.mo[kind].sort_basis(order='molden').limit_basis(limit=max_angmom)
-            orbitals.show()
+            orbitals = wfn.mo[kind].sort_basis(order='molden').limit_basis(limit=self.max_angmom)
             self.write_orbitals(
                 orbitals,
                 kind=kind,
@@ -132,7 +131,7 @@ class MolcasFCHK:
         primitive_shells = 0
         for center in basisset:
             for angmom in center['angmoms']:
-                if angmom['value'] > max_angmom:
+                if angmom['value'] > self.max_angmom:
                     continue
                 highest_angmom = max(angmom['value'], highest_angmom)
                 contracted_shells += len(angmom['shells'])
@@ -154,7 +153,7 @@ class MolcasFCHK:
         offset = 0
         for center in basisset:
             for angmom in center['angmoms']:
-                if angmom['value'] > max_angmom:
+                if angmom['value'] > self.max_angmom:
                     continue
                 highest_angmom = max(angmom['value'], highest_angmom)
                 contracted_shells += len(angmom['shells'])
