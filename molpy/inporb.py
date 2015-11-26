@@ -64,7 +64,7 @@ class MolcasINPORB():
         else:
             uhf = 0
             kinds = ['restricted']
-        self.write_info(uhf, wfn.n_sym, [wfn.basis_set.n_cgto])
+        self.write_info(uhf, wfn.n_sym, wfn.n_bas)
         for kind in kinds:
             orbitals = wfn.mo[kind]
             orbitals.sanitize()
