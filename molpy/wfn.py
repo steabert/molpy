@@ -531,6 +531,7 @@ class Wavefunction():
         guessorb = {}
         Smat_ao = np.asmatrix(self.overlap)
         Fmat_ao = np.asmatrix(self.fockint)
+        Fmat_ao = Smat_ao.T * Fmat_ao * Smat_ao
         for kind in self.mo.keys():
             C_mo = np.asmatrix(self.mo[kind].coefficients)
             E_mo = np.empty(len(self.mo[kind].energies))
@@ -544,7 +545,7 @@ class Wavefunction():
                 U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
                 Cmat = Cmat * U_lowdin
                 # diagonalize metric Fock
-                Fmat_mo = Cmat.T * Smat_ao.T * Fmat_ao * Smat_ao * Cmat
+                Fmat_mo = Cmat.T * Fmat_ao * Cmat
                 f,U = np.linalg.eigh(Fmat_mo)
                 Cmat = Cmat * U
                 # copy back to correct supsym id
