@@ -40,7 +40,7 @@ def argument_parser():
         '-c',
         '--convert',
         type=str,
-        choices=('inporb', 'h5', 'fchk', 'molden'),
+        choices=('inporb', 'inporb11', 'inporb20', 'h5', 'fchk', 'molden'),
         help='output format'
         )
     parser.add_argument(
@@ -79,7 +79,7 @@ def argument_parser():
         '-d',
         '--desymmetrize',
         action='store_true',
-        help='remove irrep blocking of the orbitals'
+        help='remove Molcas native symmetry handling from orbitals'
         )
     parser.add_argument(
         '--symmetrize',
@@ -90,6 +90,11 @@ def argument_parser():
         '--supsym',
         action='store_true',
         help='print a Molcas SUPSym input'
+        )
+    parser.add_argument(
+        '--mulliken',
+        action='store_true',
+        help='print a Mulliken population analysis'
         )
     parser.add_argument(
         '--linewidth',
@@ -145,11 +150,18 @@ def driver():
                 give another name with the -o/--outfile option
                 """)
 
-    filename = args.infile
-    if (filename.endswith('.h5')):
-        wfn = molpy.Wavefunction.from_h5(filename)
-    else:
-        wfn = molpy.Wavefunction.from_inporb(filename)
+    if not os.path.isfile(args.infile):
+        print('The input file does not exist.')
+        sys.exit(1)
+    try:
+        wfn = molpy.Wavefunction.from_h5(args.infile)
+    except molpy.InvalidRequest:
+        try:
+            wfn = molpy.Wavefunction.from_inporb(args.infile)
+        except molpy.InvalidRequest:
+            print('You seem to be trying to read a file that is neither\n'
+                  'an HDF5 or INPORB file, or it does not exist.')
+            sys.exit(1)
 
     base, ext = os.path.splitext(args.infile)
 
@@ -157,7 +169,13 @@ def driver():
         wfn = wfn.salcorb()
     
     if args.guessorb:
-        wfn = wfn.guessorb()
+        if wfn.overlap is None or wfn.fockint is None:
+            print('You cannot create guess orbitals without access to both\n'
+                  'the atomic overlap matrix and fockint matrix. Most probably\n'
+                  'you are using the Molcas INPORB file which does not have\n'
+                  'the necessary data. Please use a Molcas HDF5 file instead.')
+        else:
+            wfn = wfn.guessorb()
 
     if args.symmetrize:
         wfn = wfn.symmetrize()
@@ -165,19 +183,16 @@ def driver():
     if args.convert:
         outpath = args.outfile or '.'.join((base, args.convert))
         if os.path.isfile(outpath) and not args.force:
-            print(
-                """
-                the requested output file already exists
-
-                To continue, please remove the file, use the
-                -f/--force option to overwrite the file, or
-                give another name with the -o/--outfile option
-                """
-                )
+            print('The requested output file already exists.\n'
+                  'To continue, please remove the file, use the\n'
+                  '-f/--force option to overwrite the file, or\n'
+                  'give another name with the -o/--outfile option.')
             sys.exit(1)
         FileFormat = {
             'h5': molpy.MolcasHDF5,
             'inporb': molpy.MolcasINPORB,
+            'inporb11': molpy.MolcasINPORB11,
+            'inporb20': molpy.MolcasINPORB20,
             'molden': molpy.MolcasMOLDEN,
             'fchk': molpy.MolcasFCHK,
             }
@@ -186,8 +201,7 @@ def driver():
         f.close()
 
     if args.print_orbitals:
-        molpy.tools.print_header('Molecular Orbitals')
-        wfn.print_orbitals(types=args.typeids, pattern=args.match, desym=args.desymmetrize)
+        wfn.print_orbitals(types=args.typeids, pattern=args.match)
 
     if args.print_symmetry_species:
         molpy.tools.print_header('Molecular Orbital Symmetry Species')
@@ -202,6 +216,10 @@ def driver():
             for irrep in irreps:
                 mo_set, = np.where(orbitals.irreps == irrep)
                 print(len(mo_set), '  ', *(1+mo_set))
+
+    if args.mulliken:
+        for center, charge in zip(wfn.basis_set.center_labels, wfn.mulliken()):
+            print(center, charge)
 
 if __name__ == '__main__':
     driver()

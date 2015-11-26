@@ -195,16 +195,28 @@ class BasisSet():
         Reorder the supplied ids of the contracted functions by either
         Molcas or Molden/Gaussian ranking and return an array of indices.
         """
-
         if ids is None:
             ids = np.arange(self.n_cgto)
 
         if order == 'molcas':
-            return self.cgto_molcas_indices[ids]
+            selection = self.cgto_molcas_indices[ids]
         elif order == 'molden':
-            return self.cgto_molden_indices[ids]
+            selection = self.cgto_molden_indices[ids]
         else:
             raise Error('invalid order parameter')
+        return selection
+
+    def angmom_ids(self, ids=None, limit=3):
+        """
+        Limit the basis ids by angular momentum. The default is to limit up
+        to f functions (angular momentum 3).
+        """
+        if ids is None:
+            ids = np.arange(self.n_cgto)
+
+        cgto_angmom_ids = self.contracted_ids[ids,2]
+        selection, = np.where(cgto_angmom_ids <= limit)
+        return ids[selection]
 
 
 @export
@@ -220,8 +232,6 @@ class OrbitalSet():
         self.coefficients = np.asmatrix(coefficients)
         self.n_bas = coefficients.shape[0]
         self.n_orb = coefficients.shape[1]
-        assert self.n_bas != 0
-        assert self.n_orb != 0
 
         if irreps is None:
             self.irreps = np.zeros(self.n_bas)
@@ -300,6 +310,11 @@ class OrbitalSet():
         ids = self.basis_set.argsort_ids(self.basis_ids, order=order)
         return self.filter_basis(ids)
 
+    def limit_basis(self, limit=3):
+
+        ids = self.basis_set.angmom_ids(self.basis_ids, limit=limit)
+        return self.filter_basis(ids)
+
     def __str__(self):
         """
         returns the Orbital coefficients formatted as columns
@@ -311,7 +326,6 @@ class OrbitalSet():
         str_template = prefix + self.n_orb * '{:>10s}'
 
         lines = []
-        lines.append('')
 
         line = int_template.format("ID", *self.ids)
         lines.append(line)
@@ -342,12 +356,17 @@ class OrbitalSet():
             line = float_template.format(labels[ibas], *np.ravel(self.coefficients[ibas,:]))
             lines.append(line)
 
+        lines.append('')
+
         return '\n'.join(lines)
 
     def show(self, cols=10):
         """
         prints the entire orbital set in blocks of cols orbitals
         """
+
+        if self.n_orb == 0:
+            print('no orbitals to show... perhaps you filtered too strictly?')
 
         for offset in range(0, self.n_orb, cols):
             orbitals = self[offset:offset+cols]
@@ -357,7 +376,7 @@ class OrbitalSet():
 
         if self.n_irreps > 1:
             for irrep in range(self.n_irreps):
-                print('symmetry {:d}'.format(irrep))
+                print('symmetry {:d}'.format(irrep+1))
                 print()
                 indices, = np.where(self.irreps == irrep)
                 self[indices].sorted(reindex=True).show(cols=cols)
@@ -437,6 +456,19 @@ class OrbitalSet():
 
         return self.filter_basis(np.asarray(matching))
 
+    def sanitize(self):
+        """
+        Sanitize the orbital data, replacing NaN or missing values with safe
+        placeholders.
+        """
+        for attribute in ['occupations', 'energies', 'coefficients']:
+            array = getattr(self, attribute)
+            selection = np.where(np.isnan(array))
+            array[selection] = 0.0
+
+        selection = np.where(self.types == '-')
+        self.types[selection] = 's'
+
 
 @export
 class Wavefunction():
@@ -444,6 +476,12 @@ class Wavefunction():
                  overlap=None, fockint=None,
                  spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
+        if 'alfa' in mo and 'beta' in mo:
+            self.unrestricted = True
+        elif 'restricted' in mo:
+            self.unrestricted = False
+        else:
+            raise Exception('invalid key(s) in mo dict')
         self.basis_set = basis_set
         self.salcs = salcs
         self.overlap = overlap
@@ -456,8 +494,10 @@ class Wavefunction():
         '''
         return a tuple containing the total number of electrons, the number of
         alpha electrons, the number of beta electrons, and the spin multiplicity.
+        When occupation numbers are not available (i.e. NaNs), the number of
+        electrons will be set to represent a neutral system.
         '''
-        if 'alfa' in self.mo and 'beta' in self.mo:
+        if self.unrestricted:
             n_alfa = int(np.sum(self.mo['alfa'].occupations))
             n_beta = int(np.sum(self.mo['beta'].occupations))
             n_electrons = n_alfa + n_beta
@@ -465,19 +505,14 @@ class Wavefunction():
                 spinmult = n_alfa - n_beta + 1
             else:
                 spinmult = self.spinmult
-        elif 'restricted' in self.mo:
-            try:
-                n_electrons = int(np.sum(self.mo['restricted'].occupations))
-            except ValueError:
-                n_electrons = 0
+        else:
+            n_electrons = np.sum(self.mo['restricted'].occupations)
             if self.spinmult is None:
                 spinmult = 1
             else:
                 spinmult = self.spinmult
             n_beta = (n_electrons - (spinmult - 1)) // 2
             n_alfa = n_electrons - n_beta
-        else:
-            raise InvalidRequest('orbital dict does not contain valid keys')
         electronic_charge = -n_electrons
         return (n_electrons, n_alfa, n_beta, spinmult, electronic_charge)
 
@@ -489,30 +524,31 @@ class Wavefunction():
         nuclear_charge = int(np.sum(self.basis_set.center_charges))
         return (n_atoms, nuclear_charge)
 
-    def print_orbitals(self, desym=False, types=None, erange=None, pattern=None,
-                       kind='restricted', order=None):
+    def print_orbitals(self, types=None, erange=None, pattern=None, order=None):
 
-        try:
-            orbitals = self.mo[kind]
-        except KeyError:
-            raise Error('invalid orbital kind parameter')
+        for kind in ('restricted', 'alfa', 'beta'):
+            if kind not in self.mo:
+                continue
+            else:
+                orbitals = self.mo[kind]
 
-        if types is not None:
-            orbitals = orbitals.type(*types)
+            if types is not None:
+                orbitals = orbitals.type(*types)
 
-        if erange is not None:
-            orbitals = orbitals.erange(*erange)
+            if erange is not None:
+                orbitals = orbitals.erange(*erange)
 
-        if pattern is not None:
-            orbitals = orbitals.pattern(pattern)
+            if pattern is not None:
+                orbitals = orbitals.pattern(pattern)
 
-        if order is not None:
-            orbitals = orbitals.sort_basis(order=order)
+            if order is not None:
+                orbitals = orbitals.sort_basis(order=order)
 
-        if desym:
-            orbitals.show()
-        else:
-            orbitals.show_by_irrep()
+            self._print_mo_header(kind=kind)
+            if self.n_sym > 1:
+                orbitals.show_by_irrep()
+            else:
+                orbitals.show()
 
     def print_symmetry_species(self, types=None, erange=None, pattern=None,
                                kind='restricted', order=None):
@@ -689,7 +725,44 @@ class Wavefunction():
                                           basis_set=self.mo[kind].basis_set)             
         return Wavefunction(symorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
         
-        
+    def mulliken(self):
+        """
+        perform a mulliken population analysis
+        """
+        if self.overlap is not None:
+            Smat_ao = np.asmatrix(self.overlap)
+        else:
+            raise Exception('mulliken analysis is missing the overlap matrix')
+
+        population = {}
+        for kind, mo in self.mo.items():
+            population[kind] = np.zeros(len(self.basis_set.center_charges))
+            Cmat = np.asmatrix(mo.coefficients)
+            D = Cmat * np.diag(mo.occupations) * Cmat.T
+            DS = np.multiply(D, Smat_ao)
+            for i, (ao, basis_id) in enumerate(zip(np.asarray(DS), mo.basis_ids)):
+                pop = np.sum(ao)
+                cgto_tuple = mo.basis_set.contracted_ids[basis_id]
+                center_id, l, n, m = cgto_tuple
+                population[kind][center_id-1] += pop
+
+        if self.unrestricted:
+            population_total = population['alfa'] + population['beta']
+        else:
+            population_total = population['restricted']
+        mulliken_charges = self.basis_set.center_charges - population_total
+        return mulliken_charges
+
+    @staticmethod
+    def _print_mo_header(kind=None, width=128, delim='*'):
+        if kind is not None:
+            text = kind + ' molecular orbitals'
+        else:
+            text = 'molecular orbitals'
+        starline = delim * width
+        starskip = delim + ' ' * (width - 2) + delim
+        titleline = delim + text.title().center(width - 2, ' ') + delim
+        print('\n'.join([starline, starskip, titleline, starskip, starline, '']))
 
     @classmethod
     def from_h5(cls, filename):
@@ -803,6 +876,7 @@ class Wavefunction():
 
         mo = {}
         for kind in kinds:
+            f.rewind()
             mo_vectors = f.read_orb(kind=kind)
             mo_occupations = f.read_occ(kind=kind)
             mo_energies = f.read_one(kind=kind)

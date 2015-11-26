@@ -1,19 +1,35 @@
 from . import export
 from .tools import *
+from .errors import InvalidRequest
 
 
 @export
 class MolcasINPORB():
-
+    """
+    Handle reading and writing of Molcas INPORB files. These are the default
+    formatted orbital files used by any Molcas program modules.
+    """
     def __init__(self, filename, mode, version='2.0'):
-        """ initialize from a file object """
+        """
+        initialize the INPORB file and prepare for reading or writing
+        """
+        if mode.startswith('r'):
+            with open(filename, 'r') as f:
+                firstline = next(f)
+            if not firstline.startswith('#INPORB'):
+                raise InvalidRequest
+
         self.f = open(filename, mode)
 
         if mode.startswith('r'):
             line = seek_line(self.f, '#INPORB')
             self.version = line.split()[1]
             seek_line(self.f, '#INFO')
-            self.unrestricted, self.n_sym, self.wfn_type = (int(val) for val in self._next_noncomment().split())
+            uhf, self.n_sym, self.wfn_type = (int(val) for val in self._next_noncomment().split())
+            if uhf == 1:
+                self.unrestricted = True
+            else:
+                self.unrestricted = False
             self.n_bas = np.array(self._next_noncomment().split(), dtype=np.int)
             self.n_orb = np.array(self._next_noncomment().split(), dtype=np.int)
         elif mode.startswith('w'):
@@ -40,25 +56,32 @@ class MolcasINPORB():
         else:
             raise Exception('invalid version number')
 
-    def read(self):
-        self.read_info()
-        self.read_orb()
-        self.read_occ()
-        self.read_one()
-        self.read_index()
-
     def write(self, wfn):
         self.write_version(self.version)
-        self.write_info(1, [wfn.basis_set.n_cgto])
-        for kind in wfn.mo.keys():
+        if wfn.unrestricted:
+            uhf = 1
+            kinds = ['alfa', 'beta']
+        else:
+            uhf = 0
+            kinds = ['restricted']
+        self.write_info(uhf, wfn.n_sym, wfn.n_bas)
+        for kind in kinds:
             orbitals = wfn.mo[kind]
-            self.write_orb([orbitals.coefficients], kind=kind)
-            self.write_occ([orbitals.occupations], kind=kind)
-            self.write_one([orbitals.energies], kind=kind)
-            self.write_index([orbitals.types], kind=kind)
+            orbitals.sanitize()
+        for kind in kinds:
+            self.write_orb([wfn.mo[kind].coefficients], kind=kind)
+        for kind in kinds:
+            self.write_occ([wfn.mo[kind].occupations], kind=kind)
+        for kind in kinds:
+            self.write_one([wfn.mo[kind].energies], kind=kind)
+        for kind in kinds:
+            self.write_index([wfn.mo[kind].types], kind=kind)
 
     def close(self):
         self.f.close()
+
+    def rewind(self):
+        self.f.seek(0)
 
     def read_orb(self, kind='restricted'):
 
@@ -110,12 +133,12 @@ class MolcasINPORB():
     def write_version(self, version):
         self.f.write('#INPORB {:s}\n'.format(version))
 
-    def write_info(self, sym_size, basis_sizes):
+    def write_info(self, uhf, n_sym, n_bas):
         """ write info block """
         self.f.write('#INFO\n')
-        self.f.write((3 * '{:8d}' + '\n').format(0,sym_size,0))
-        self.f.write((sym_size * '{:8d}' + '\n').format(*basis_sizes))
-        self.f.write((sym_size * '{:8d}' + '\n').format(*basis_sizes))
+        self.f.write((3 * '{:8d}' + '\n').format(uhf,n_sym,0))
+        self.f.write((n_sym * '{:8d}' + '\n').format(*n_bas))
+        self.f.write((n_sym * '{:8d}' + '\n').format(*n_bas))
 
     def write_orb(self, mo_vectors, kind='restricted'):
 
@@ -124,7 +147,7 @@ class MolcasINPORB():
             norb = coef.shape[0]
             for jorb in range(norb):
                 self.f.write('* ORBITAL{:5d}{:5d}\n'.format(isym+1,jorb+1))
-                self._write_blocked(np.ravel(coef[:,jorb]), self.orb_fmt)
+                self._write_blocked(np.ravel(coef[:,jorb]), self.orb_fmt, blocksize=self.orb_blk_size)
 
     def write_occ(self, mo_occupations, kind='restricted'):
 
@@ -161,8 +184,8 @@ class MolcasINPORB():
         """
         arr = np.empty(size)
         for offset in range(0, size, blk_size):
-            line = self._next_noncomment()
-            values = [line[sta:sta+18] for sta in range(0,72,18)]
+            line = self._next_noncomment().rstrip()
+            values = [line[sta:sta+18] for sta in range(0,len(line),18)]
             arr[offset:offset+blk_size] = np.array(values, dtype=np.float64)
         return arr
 
@@ -182,7 +205,7 @@ class MolcasINPORB():
         """
         if enum:
             for idx, offset in enumerate(range(0, len(arr), blocksize)):
-                prefix = '{:1d} '.format(idx)
+                prefix = '{:1d} '.format(idx % 10)
                 line = ''.join(fmt.format(i) for i in arr[offset:offset+blocksize])
                 self.f.write(prefix + line + '\n')
         else:
@@ -193,6 +216,18 @@ class MolcasINPORB():
     @staticmethod
     def _format_header(header, kind='restricted'):
         if kind == 'beta':
-            return '#U' + header
+            return '#U' + header + '\n'
         else:
-            return '#' + header
+            return '#' + header + '\n'
+
+
+@export
+class MolcasINPORB11(MolcasINPORB):
+    def __init__(self, filename, mode):
+        super().__init__(filename, mode, version='1.1')
+
+
+@export
+class MolcasINPORB20(MolcasINPORB):
+    def __init__(self, filename, mode):
+        super().__init__(filename, mode, version='2.0')
