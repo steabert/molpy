@@ -223,7 +223,7 @@ class OrbitalSet():
                  irreps=None, energies=None, occupations=None,
                  basis_ids=None, basis_set=None):
 
-        self.coefficients = np.asmatrix(coefficients)
+        self.coefficients = np.asarray(coefficients)
         self.n_bas = coefficients.shape[0]
         self.n_orb = coefficients.shape[1]
 
