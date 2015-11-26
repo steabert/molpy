@@ -9,6 +9,12 @@ from .inporb import MolcasINPORB
 from .tools import lst_to_arr, argsort
 from .errors import Error, DataNotAvailable
 
+try:
+    import libmsym as msym
+except ImportError:
+    msym = None
+
+
 typename = {
     'f': 'fro',
     'i': 'ina',
@@ -358,6 +364,26 @@ class OrbitalSet():
         else:
             self.show(cols=cols)
 
+    def show_symmetry_species(self):
+        bs = self.basis_set
+        
+        elements = [msym.Element(coordinates = Coord, charge = int(Charge))
+                    for Coord, Charge in zip(bs.center_coordinates, bs.center_charges)]
+    
+        basis_functions = [msym.RealSphericalHarmonic(element = elements[element_id-1], n = n + l, l = l, m = m)
+                           for [element_id, n, l, m] in bs.contracted_ids]
+        
+        with msym.Context(elements = elements, basis_functions = basis_functions) as ctx:
+            point_group = ctx.find_symmetry()
+            species_names = [s.name for s in ctx.character_table.symmetry_species]
+            coefficients = np.asarray(self.coefficients)
+            for offset in range(0,self.n_orb):
+                mo = coefficients[:,offset]
+                #mo /= np.linalg.norm(mo)
+                species_components = ctx.symmetry_species_components(mo)
+                print(offset,': ',' + '.join(['%f %s' % k for k in zip(species_components, species_names) if k[0] > 1.0e-6]))
+        
+
     def sorted(self, reindex=False):
         """
         returns a new orbitals set sorted first by typeid, then by
@@ -488,6 +514,27 @@ class Wavefunction():
         else:
             orbitals.show_by_irrep()
 
+    def print_symmetry_species(self, types=None, erange=None, pattern=None,
+                               kind='restricted', order=None):
+        try:
+            orbitals = self.mo[kind]
+        except KeyError:
+            raise Error('invalid orbital kind parameter')
+
+        if types is not None:
+            orbitals = orbitals.type(*types)
+
+        if erange is not None:
+            orbitals = orbitals.erange(*erange)
+
+        if pattern is not None:
+            orbitals = orbitals.pattern(pattern)
+
+        if order is not None:
+            orbitals = orbitals.sort_basis(order=order)
+
+        orbitals.show_symmetry_species()
+
     def guessorb(self, kind='restricted'):
         """
         generate a set of initial molecular orbitals
@@ -521,6 +568,128 @@ class Wavefunction():
                                         irreps=irreps[mo_order],
                                         basis_set=self.mo[kind].basis_set)
         return Wavefunction(guessorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
+
+    def salcorb(self, kind='restricted'):
+        """
+        generate a set of initial molecular orbitals from SALCs
+        """
+        if msym is None:
+            raise ImportError('no libmsym installation found')
+
+        symorb = {}
+        
+        Smat_ao = np.asmatrix(self.overlap)
+        Fmat_ao = np.asmatrix(self.fockint)
+
+        bs = self.basis_set
+        
+        elements = [msym.Element(coordinates = Coord, charge = int(Charge))
+                    for Coord, Charge in zip(bs.center_coordinates, bs.center_charges)]
+    
+        basis_functions = [msym.RealSphericalHarmonic(element = elements[element_id-1], n = n + l, l = l, m = m)
+                           for [element_id, n, l, m] in bs.contracted_ids]
+
+        E_salcs = np.empty(len(basis_functions))
+        supsym = np.empty(len(basis_functions), dtype=np.int_)
+        
+        with msym.Context(elements = elements, basis_functions = basis_functions) as ctx:
+            point_group = ctx.find_symmetry()
+            species_names = [s.name for s in ctx.character_table.symmetry_species]
+            (C_salcs, salc_species, partner_functions) = ctx.salcs
+            C_salcs = C_salcs.T
+            salc_components = np.array([pf.dim for pf in partner_functions])
+
+            salc_sc = [(s, np.sort(np.unique(salc_components[salc_species == s]))) for s in np.unique(salc_species)]
+            salc_sci = {}
+
+            for (species, components) in salc_sc:
+                salc_sci.update({(species,c):len(salc_sci) + i for i, c in enumerate(components)})
+                comp_head, *comp_tail = components
+                select_species = species == salc_species
+                select_comp = {c:np.where(np.all([select_species, salc_components == c], axis=0))[0] for c in components}
+                Cmat = {c:C_salcs[:,select_comp[c]] for c in components}
+
+                Smat_mo = Cmat[comp_head].T * Smat_ao * Cmat[comp_head]
+                
+                # average out symmetry breaking in overlap
+                for component in comp_tail:
+                    Smat_mo += Cmat[component].T * Smat_ao * Cmat[component]
+                    
+                Smat_mo /= len(components)
+                
+                # orthonormalize overlap
+                s,U = np.linalg.eigh(Smat_mo)
+                U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
+
+                for component in components:
+                    Cmat[component] = Cmat[component] * U_lowdin
+                
+                # average out symmetry breaking in metric Fock
+                Fmat_mo = Cmat[comp_head].T * Smat_ao.T * Fmat_ao * Smat_ao * Cmat[comp_head]
+                for component in comp_tail:
+                    Fmat_mo += Cmat[component].T * Smat_ao.T * Fmat_ao * Smat_ao * Cmat[component]
+                    
+                Fmat_mo /= len(components)
+                
+                # diagonalize metric Fock
+                f,U = np.linalg.eigh(Fmat_mo)
+
+                for component in components:
+                    Cmat[component] = Cmat[component] * U
+                    # update components, energies and supsym 
+                    select = select_comp[component]
+                    supsym[select] = salc_sci[(species,component)]
+                    C_salcs[:,select] = Cmat[component]
+                    E_salcs[select] = f
+
+            salc_order = np.argsort(E_salcs)
+            for kind in self.mo.keys():
+                symorb[kind] = OrbitalSet(C_salcs[:,salc_order],
+                                          energies=E_salcs[salc_order],
+                                          irreps=supsym[salc_order],
+                                          basis_set=self.mo[kind].basis_set)
+
+        return Wavefunction(symorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
+                    
+    def symmetrize(self):
+        """ Symmetrizes the wavefunction """
+        if msym is None:
+            raise ImportError('no libmsym installation found')
+
+        bs = self.basis_set
+        
+        elements = [msym.Element(coordinates = Coord, charge = int(Charge))
+                    for Coord, Charge in zip(bs.center_coordinates, bs.center_charges)]
+    
+        basis_functions = [msym.RealSphericalHarmonic(element = elements[element_id-1], n = n + l, l = l, m = m)
+                           for [element_id, n, l, m] in bs.contracted_ids]
+
+        Smat_ao = np.asmatrix(self.overlap)
+
+        symorb = {}
+        
+        with msym.Context(elements = elements, basis_functions = basis_functions) as ctx:
+            point_group = ctx.find_symmetry()
+            species = ctx.character_table.symmetry_species
+            species_names = [s.name for s in species]
+            for kind in self.mo.keys():
+                # remove overlap
+                C_mo = np.asmatrix(self.mo[kind].coefficients)
+                s,U = np.linalg.eigh(C_mo.T*C_mo)
+                U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
+                C_mo = C_mo * U_lowdin
+                (salcs, species, partner_functions) = ctx.symmetrize_wavefunctions(C_mo.T)
+                # orthonormalize
+                s,U = np.linalg.eigh(salcs * Smat_ao * salcs.T)
+                U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
+                C_mo = C_mo * U_lowdin
+                symorb[kind] = OrbitalSet(C_mo,
+                                          energies=self.mo[kind].energies,
+                                          irreps=self.mo[kind].irreps,
+                                          basis_set=self.mo[kind].basis_set)             
+        return Wavefunction(symorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
+        
+        
 
     @classmethod
     def from_h5(cls, filename):

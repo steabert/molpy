@@ -58,16 +58,33 @@ def argument_parser():
         )
 
     parser.add_argument(
+        '-s',
+        '--salcorb',
+        action='store_true',
+        help='generate starting orbitals from a core-hamiltonian guess and SALCs'
+        )
+
+    parser.add_argument(
         '-p',
         '--print_orbitals',
         action='store_true',
         help='print orbitals'
         )
     parser.add_argument(
+        '--print_symmetry_species',
+        action='store_true',
+        help='print symmetry species'
+        )
+    parser.add_argument(
         '-d',
         '--desymmetrize',
         action='store_true',
         help='remove irrep blocking of the orbitals'
+        )
+    parser.add_argument(
+        '--symmetrize',
+        action='store_true',
+        help='symmetrize the orbitals'
         )
     parser.add_argument(
         '--supsym',
@@ -136,8 +153,14 @@ def driver():
 
     base, ext = os.path.splitext(args.infile)
 
+    if args.salcorb:
+        wfn = wfn.salcorb()
+    
     if args.guessorb:
         wfn = wfn.guessorb()
+
+    if args.symmetrize:
+        wfn = wfn.symmetrize()
 
     if args.convert:
         outpath = args.outfile or '.'.join((base, args.convert))
@@ -165,6 +188,10 @@ def driver():
     if args.print_orbitals:
         molpy.tools.print_header('Molecular Orbitals')
         wfn.print_orbitals(types=args.typeids, pattern=args.match, desym=args.desymmetrize)
+
+    if args.print_symmetry_species:
+        molpy.tools.print_header('Molecular Orbital Symmetry Species')
+        wfn.print_symmetry_species(types=args.typeids, pattern=args.match)
 
     if args.supsym:
         for kind in wfn.mo.keys():

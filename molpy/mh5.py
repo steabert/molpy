@@ -213,8 +213,17 @@ class MolcasHDF5:
         try:
             indices = self.maybe_fetch_dset('SUPSYM_IRREP_INDICES')
         except DataNotAvailable:
-            indices = np.empty(sum(self.n_bas**2), dtype=float64)
-            indices.fill(np.nan)
+            indices = np.empty(sum(self.n_bas**2), dtype=np.int_)
+            indices.fill(0)
+        return arr_to_lst(indices, self.n_bas)
+
+    def supsym_irrep_ids(self):
+
+        try:
+            indices = self.maybe_fetch_dset('SUPSYM_IRREP_IDS')
+        except DataNotAvailable:
+            indices = np.empty(sum(self.n_bas**2), dtype=np.int_)
+            indices.fill(0)
         return arr_to_lst(indices, self.n_bas)
 
     def supsym_irrep_labels(self):
