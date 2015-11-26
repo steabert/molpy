@@ -14,9 +14,12 @@ class MolcasINPORB():
         initialize the INPORB file and prepare for reading or writing
         """
         if mode.startswith('r'):
-            with open(filename, 'r') as f:
-                firstline = next(f)
-            if not firstline.startswith('#INPORB'):
+            try:
+                with open(filename, 'r') as f:
+                    firstline = next(f)
+                if not firstline.startswith('#INPORB'):
+                    raise InvalidRequest
+            except:
                 raise InvalidRequest
 
         self.f = open(filename, mode)
