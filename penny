@@ -156,7 +156,7 @@ def driver():
                   'the necessary data. Please use a Molcas HDF5 file instead.')
             sys.exit(1)
         else:
-            wfn = wfn.guessorb()
+            wfn.mo = wfn.guessorb()
 
     if args.convert:
         outpath = args.outfile or '.'.join((base, args.convert))

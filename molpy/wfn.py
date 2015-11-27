@@ -524,9 +524,9 @@ class Wavefunction():
             else:
                 orbitals.show()
 
-    def guessorb(self, kind='restricted'):
+    def guessorb(self):
         """
-        generate a set of initial molecular orbitals
+        return a set of molecular orbitals that diagonalize the atomic fock matrix.
         """
         guessorb = {}
         Smat_ao = np.asmatrix(self.overlap)
@@ -557,7 +557,7 @@ class Wavefunction():
                                         energies=E_mo[mo_order],
                                         irreps=irreps[mo_order],
                                         basis_set=self.mo[kind].basis_set)
-        return Wavefunction(guessorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
+        return guessorb
 
     def mulliken(self):
         """
