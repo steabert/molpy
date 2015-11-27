@@ -37,6 +37,11 @@ def argument_parser():
         help='name of the output file'
         )
     parser.add_argument(
+        '--joinorb',
+        type=str,
+        help='join with orbital file'
+        )
+    parser.add_argument(
         '-c',
         '--convert',
         type=str,
@@ -164,6 +169,26 @@ def driver():
             sys.exit(1)
 
     base, ext = os.path.splitext(args.infile)
+
+    if not args.joinorb is None:
+        if not os.path.isfile(args.joinorb):
+            print('The orbital file to join does not exist.')
+            sys.exit(1)
+        try:
+            orb = molpy.Wavefunction.from_inporb(args.joinorb)
+        except molpy.InvalidRequest:
+            print('You seem to be trying to read a file that is not\n'
+                  'an INPORB file, or it does not exist.')
+            sys.exit(1)
+
+        for key in orb.mo.keys():
+            orb.mo[key].basis_set = wfn.mo[key].basis_set
+            
+        wfn.mo = orb.mo
+        wfn.n_sym = orb.n_sym
+        wfn.n_bas = orb.n_bas
+        
+        
 
     if args.salcorb:
         wfn = wfn.salcorb()
