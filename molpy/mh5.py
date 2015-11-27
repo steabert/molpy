@@ -20,7 +20,7 @@ class MolcasHDF5:
                 self.n_sym = self.h5f.attrs['NSYM']
                 self.n_bas = self.h5f.attrs['NBAS']
             except:
-                raise DataNotAvailable('required data is missing!')
+                raise DataNotAvailable('requested data is missing on the HDF5 file')
             assert self.n_sym == len(self.n_bas)
 
     def close(self):
@@ -31,7 +31,7 @@ class MolcasHDF5:
         try:
             data = self.h5f.attrs[field]
         except:
-            raise DataNotAvailable('HDF5 file is missing field {:s}'.format(field))
+            raise DataNotAvailable('HDF5 missing attribute: {:s}'.format(field))
         return data
 
     def maybe_fetch_dset(self, field):
@@ -39,7 +39,7 @@ class MolcasHDF5:
         try:
             data = np.array(self.h5f[field])
         except:
-            raise DataNotAvailable('HDF5 file is missing field {:s}'.format(field))
+            raise DataNotAvailable('HDF5 missing dataset: {:s}'.format(field))
         return data
 
     def molcas_version(self):

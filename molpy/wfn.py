@@ -528,6 +528,9 @@ class Wavefunction():
         """
         return a set of molecular orbitals that diagonalize the atomic fock matrix.
         """
+        if self.overlap is None or self.fockint is None:
+            raise DataNotAvailable('guessorb is missing the overlap and/or fockint matrix')
+
         guessorb = {}
         Smat_ao = np.asmatrix(self.overlap)
         Fmat_ao = np.asmatrix(self.fockint)

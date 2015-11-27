@@ -149,14 +149,11 @@ def driver():
     base, ext = os.path.splitext(args.infile)
 
     if args.guessorb:
-        if wfn.overlap is None or wfn.fockint is None:
-            print('You cannot create guess orbitals without access to both\n'
-                  'the atomic overlap matrix and fockint matrix. Most probably\n'
-                  'you are using the Molcas INPORB file which does not have\n'
-                  'the necessary data. Please use a Molcas HDF5 file instead.')
-            sys.exit(1)
-        else:
+        try:
             wfn.mo = wfn.guessorb()
+        except molpy.DataNotAvailable as e:
+            print(e)
+            sys.exit(1)
 
     if args.convert:
         outpath = args.outfile or '.'.join((base, args.convert))
@@ -177,10 +174,8 @@ def driver():
         f = FileFormat[args.convert](outpath, 'w')
         try:
             f.write(wfn)
-        except molpy.DataNotAvailable:
-            print('The output format needs data that is not avaible.\n'
-                  'Probably you are trying to convert an INPORB format to\n'
-                  'a format that needs basis set information.')
+        except molpy.DataNotAvailable as e:
+            print(e)
             sys.exit(1)
         f.close()
 
