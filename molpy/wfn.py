@@ -6,7 +6,7 @@ import re
 from . import export
 from .mh5 import MolcasHDF5
 from .inporb import MolcasINPORB
-from .tools import lst_to_arr, argsort
+from .tools import lst_to_arr, argsort, reshape_square
 from .errors import Error, DataNotAvailable
 
 typename = {
@@ -232,7 +232,7 @@ class OrbitalSet():
             self.n_irreps = 1
         else:
             self.irreps = irreps
-            self.n_irreps = len(set(irreps))
+            self.n_irreps = len(np.unique(irreps))
 
         self.n_irreps = len(np.unique(irreps))
 
@@ -623,8 +623,6 @@ class Wavefunction():
             center_charges = f.center_charges()
             center_coordinates = f.center_coordinates()
             contracted_ids = f.basis_function_ids()
-            overlap = f.ao_overlap_matrix()
-            fockint = f.ao_fockint_matrix()
         primitive_ids = f.primitive_ids()
         primitives = f.primitives()
 
@@ -639,10 +637,13 @@ class Wavefunction():
                 )
 
         if n_sym > 1:
-            irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
-            mo_irreps = lst_to_arr(irrep_list)
+            mo_irreps = np.empty(sum(n_bas), dtype=np.int)
+            offset = 0
+            for irrep, nb in enumerate(n_bas):
+                mo_irreps[offset:offset+nb] = irrep
+                offset += nb
         else:
-            mo_irreps = lst_to_arr(f.supsym_irrep_indices())
+            mo_irreps = f.supsym_irrep_indices()
 
         unrestricted = f.unrestricted()
         if unrestricted:
@@ -656,11 +657,7 @@ class Wavefunction():
             mo_energies = f.mo_energies(kind=kind)
             mo_typeindices = f.mo_typeindices(kind=kind)
             mo_vectors = f.mo_vectors(kind=kind)
-
-            mo_occupations = lst_to_arr(mo_occupations)
-            mo_energies = lst_to_arr(mo_energies)
-            mo_typeindices = lst_to_arr(mo_typeindices)
-            mo_vectors = la.block_diag(*mo_vectors)
+            mo_vectors = reshape_square(mo_vectors, n_bas)
 
             if n_sym > 1:
                 mo_vectors = np.dot(salcs, mo_vectors)
@@ -672,11 +669,21 @@ class Wavefunction():
                                   occupations=mo_occupations,
                                   basis_set=basis_set)
 
-        overlap = la.block_diag(*f.ao_overlap_matrix())
-        fockint = la.block_diag(*f.ao_fockint_matrix())
-        if n_sym > 1:
-            overlap = np.dot(np.dot(salcs, overlap), salcs.T)
-            fockint = np.dot(np.dot(salcs, fockint), salcs.T)
+        try:
+            overlap = f.ao_overlap_matrix()
+            overlap = reshape_square(overlap, n_bas)
+            if overlap is not None and n_sym > 1:
+                overlap = np.dot(np.dot(salcs, overlap), salcs.T)
+        except DataNotAvailable:
+            overlap = None
+
+        try:
+            fockint = f.ao_fockint_matrix()
+            fockint = reshape_square(fockint, n_bas)
+            if fockint is not None and n_sym > 1:
+                fockint = np.dot(np.dot(salcs, fockint), salcs.T)
+        except DataNotAvailable:
+            fockint = None
 
         try:
             ispin = f.ispin()

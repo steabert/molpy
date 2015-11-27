@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import re
+from scipy import linalg as la
 
 
 def info(*args):
@@ -99,3 +100,21 @@ def seek_line(f, pattern):
 def ordered_list(lst):
     """ create a dictionary representing an ordered list """
     return dict([(item, idx) for idx, item, in enumerate(lst)])
+
+
+def reshape_square(arr, dims):
+    """
+    Return a block-diagonal array where the blocks are constructed from a
+    flat input array and an array of dimensions for each block. The array
+    is assumed to be layed out in memory using Fortran indexing.
+    """
+    if len(dims) == 1:
+        dim = dims[0]
+        return arr.reshape((dims[0],dims[0]), order='F')
+    lst = []
+    offset = 0
+    for dim in dims:
+        slice_ = arr[offset:offset+dim**2]
+        lst.append(slice_.reshape((dim,dim), order='F'))
+        offset += dim**2
+    return la.block_diag(*lst)

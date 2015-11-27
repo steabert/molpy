@@ -163,53 +163,51 @@ class MolcasHDF5:
 
         attribute = self._get_mo_attribute('TYPEINDICES', kind=kind)
         try:
-            data_bytes = self.maybe_fetch_dset(attribute)
-            typeindices = np.char.lower(np.array(list(data_bytes), dtype='U'))
+            data_bytes = np.asarray(self.maybe_fetch_dset(attribute), dtype='U')
+            typeindices = np.char.lower(data_bytes)
         except DataNotAvailable:
             typeindices = np.array(['-'] * sum(self.n_bas), dtype='U')
-        return arr_to_lst(typeindices, self.n_bas)
+        return typeindices
 
     def mo_occupations(self, kind='restricted'):
 
         attribute = self._get_mo_attribute('OCCUPATIONS', kind=kind)
         try:
-            occupations = self.maybe_fetch_dset(attribute)
+            occupations = np.asarray(self.maybe_fetch_dset(attribute))
         except DataNotAvailable:
             occupations = np.empty(sum(self.n_bas), dtype=np.float64)
             occupations.fill(np.nan)
-        return arr_to_lst(occupations, self.n_bas)
+        return occupations
 
     def mo_energies(self, kind='restricted'):
 
         attribute = self._get_mo_attribute('ENERGIES', kind=kind)
         try:
-            energies = self.maybe_fetch_dset(attribute)
+            energies = np.asarray(self.maybe_fetch_dset(attribute))
         except DataNotAvailable:
             energies = np.empty(sum(self.n_bas), dtype=np.float64)
             energies.fill(np.nan)
-        return arr_to_lst(energies, self.n_bas)
+        return energies
 
     def mo_vectors(self, kind='restricted'):
 
         attribute = self._get_mo_attribute('VECTORS', kind=kind)
         try:
-            vectors = self.maybe_fetch_dset(attribute)
+            vectors = np.asarray(self.maybe_fetch_dset(attribute))
         except DataNotAvailable:
             vectors = np.empty(sum(self.n_bas**2), dtype=np.float64)
             vectors.fill(np.nan)
-        return arr_to_lst(vectors, [(nb,nb) for nb in self.n_bas])
+        return vectors
 
     def ao_overlap_matrix(self):
 
         attribute = 'AO_OVERLAP_MATRIX'
-        overlap_matrix = self.maybe_fetch_dset(attribute)
-        return arr_to_lst(overlap_matrix, [(nb,nb) for nb in self.n_bas])
+        return np.asarray(self.maybe_fetch_dset(attribute))
 
     def ao_fockint_matrix(self):
 
         attribute = 'AO_FOCKINT_MATRIX'
-        fockint_matrix = self.maybe_fetch_dset(attribute)
-        return arr_to_lst(fockint_matrix, [(nb,nb) for nb in self.n_bas])
+        return np.asarray(self.maybe_fetch_dset(attribute))
 
     def supsym_irrep_indices(self):
 
@@ -217,16 +215,16 @@ class MolcasHDF5:
             indices = self.maybe_fetch_dset('SUPSYM_IRREP_INDICES')
         except DataNotAvailable:
             indices = np.zeros(sum(self.n_bas**2), dtype=int)
-        return arr_to_lst(indices, self.n_bas)
+        return indices
 
     def supsym_irrep_labels(self):
 
         try:
-            labels = self.maybe_fetch_dset('SUPSYM_IRREP_LABELS')
-            labels = np.array(list(data_bytes), dtype='U')
+            data_bytes = self.maybe_fetch_dset('SUPSYM_IRREP_LABELS')
+            labels = np.asarray(data_bytes, dtype='U')
         except DataNotAvailable:
             labels = np.array(['-']*sum(self.n_bas), dtype='U')
-        return arr_to_lst(labels, self.n_bas)
+        return labels
 
     def write(self, wfn):
         self.h5f.attrs['NSYM'] = wfn.n_sym
