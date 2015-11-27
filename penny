@@ -199,8 +199,9 @@ def driver():
                   'the atomic overlap matrix and fockint matrix. Most probably\n'
                   'you are using the Molcas INPORB file which does not have\n'
                   'the necessary data. Please use a Molcas HDF5 file instead.')
+            sys.exit(1)
         else:
-            wfn = wfn.guessorb()
+            wfn.mo = wfn.guessorb()
 
     if args.symmetrize:
         wfn = wfn.symmetrize()
@@ -222,7 +223,13 @@ def driver():
             'fchk': molpy.MolcasFCHK,
             }
         f = FileFormat[args.convert](outpath, 'w')
-        f.write(wfn)
+        try:
+            f.write(wfn)
+        except molpy.DataNotAvailable:
+            print('The output format needs data that is not avaible.\n'
+                  'Probably you are trying to convert an INPORB format to\n'
+                  'a format that needs basis set information.')
+            sys.exit(1)
         f.close()
 
     if args.print_orbitals:

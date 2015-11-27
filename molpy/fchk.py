@@ -2,6 +2,7 @@ from . import export
 from . import tools
 import copy
 import numpy as np
+from .errors import DataNotAvailable
 
 
 @export
@@ -13,6 +14,8 @@ class MolcasFCHK:
         self.f = open(filename, mode)
 
     def write(self, wfn):
+        if wfn.basis_set is None:
+            raise DataNotAvailable('The fchk format needs basis set info.')
         self.write_header(
             'Molcas -> gaussian formatted checkpoint',
             'type',
@@ -48,9 +51,14 @@ class MolcasFCHK:
             wfn.basis_set.primitive_tree,
             wfn.basis_set.center_coordinates,
             )
-        for kind in wfn.mo.keys():
-            orbitals = wfn.mo[kind].sort_basis(order='molden').limit_basis(limit=max_angmom)
-            orbitals.show()
+        if wfn.unrestricted:
+            kinds = ['alpha', 'beta']
+        else:
+            kinds = ['restricted']
+        for kind in kinds:
+            orbitals = wfn.mo[kind].sort_basis(order='molden')
+            orbitals = orbitals.limit_basis(limit=self.max_angmom)
+            orbitals.sanitize()
             self.write_orbitals(
                 orbitals,
                 kind=kind,
@@ -60,7 +68,7 @@ class MolcasFCHK:
         self.f.close()
 
     def write_scalar_int(self, name, value):
-        self.f.write('{:40s}   {:1s}     {:12d}\n'.format(name, 'I', value))
+        self.f.write('{:40s}   {:1s}     {:12d}\n'.format(name, 'I', int(value)))
 
     def write_scalar_real(self, name, value):
         self.f.write('{:40s}   {:1s}     {:22.15e}\n'.format(name, 'I', value))
@@ -132,7 +140,7 @@ class MolcasFCHK:
         primitive_shells = 0
         for center in basisset:
             for angmom in center['angmoms']:
-                if angmom['value'] > max_angmom:
+                if angmom['value'] > self.max_angmom:
                     continue
                 highest_angmom = max(angmom['value'], highest_angmom)
                 contracted_shells += len(angmom['shells'])
@@ -154,7 +162,7 @@ class MolcasFCHK:
         offset = 0
         for center in basisset:
             for angmom in center['angmoms']:
-                if angmom['value'] > max_angmom:
+                if angmom['value'] > self.max_angmom:
                     continue
                 highest_angmom = max(angmom['value'], highest_angmom)
                 contracted_shells += len(angmom['shells'])
@@ -177,7 +185,7 @@ class MolcasFCHK:
 
     def write_orbitals(self, orbitals, kind='restricted'):
         self.write_scalar_int('Number of basis functions', orbitals.n_bas)
-        if kind == 'restricted' or kind == 'alfa':
+        if kind == 'restricted' or kind == 'alpha':
             prefix = 'Alpha '
         elif kind == 'beta':
             prefix = 'Beta '

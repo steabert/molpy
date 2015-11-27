@@ -216,7 +216,7 @@ class BasisSet():
 
         cgto_angmom_ids = self.contracted_ids[ids,2]
         selection, = np.where(cgto_angmom_ids <= limit)
-        return ids[selection]
+        return selection
 
 
 @export
@@ -229,7 +229,7 @@ class OrbitalSet():
                  irreps=None, energies=None, occupations=None,
                  basis_ids=None, basis_set=None):
 
-        self.coefficients = np.asmatrix(coefficients)
+        self.coefficients = np.asarray(coefficients)
         self.n_bas = coefficients.shape[0]
         self.n_orb = coefficients.shape[1]
 
@@ -476,7 +476,7 @@ class Wavefunction():
                  overlap=None, fockint=None,
                  spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
-        if 'alfa' in mo and 'beta' in mo:
+        if 'alpha' in mo and 'beta' in mo:
             self.unrestricted = True
         elif 'restricted' in mo:
             self.unrestricted = False
@@ -498,11 +498,11 @@ class Wavefunction():
         electrons will be set to represent a neutral system.
         '''
         if self.unrestricted:
-            n_alfa = int(np.sum(self.mo['alfa'].occupations))
+            n_alpha = int(np.sum(self.mo['alpha'].occupations))
             n_beta = int(np.sum(self.mo['beta'].occupations))
-            n_electrons = n_alfa + n_beta
+            n_electrons = n_alpha + n_beta
             if self.spinmult is None:
-                spinmult = n_alfa - n_beta + 1
+                spinmult = n_alpha - n_beta + 1
             else:
                 spinmult = self.spinmult
         else:
@@ -512,9 +512,9 @@ class Wavefunction():
             else:
                 spinmult = self.spinmult
             n_beta = (n_electrons - (spinmult - 1)) // 2
-            n_alfa = n_electrons - n_beta
+            n_alpha = n_electrons - n_beta
         electronic_charge = -n_electrons
-        return (n_electrons, n_alfa, n_beta, spinmult, electronic_charge)
+        return (n_electrons, n_alpha, n_beta, spinmult, electronic_charge)
 
     def nuclear_info(self):
         '''
@@ -526,7 +526,7 @@ class Wavefunction():
 
     def print_orbitals(self, types=None, erange=None, pattern=None, order=None):
 
-        for kind in ('restricted', 'alfa', 'beta'):
+        for kind in ('restricted', 'alpha', 'beta'):
             if kind not in self.mo:
                 continue
             else:
@@ -551,33 +551,35 @@ class Wavefunction():
                 orbitals.show()
 
     def print_symmetry_species(self, types=None, erange=None, pattern=None,
-                               kind='restricted', order=None):
-        try:
-            orbitals = self.mo[kind]
-        except KeyError:
-            raise Error('invalid orbital kind parameter')
+                               order=None):
+        for kind in ('restricted', 'alpha', 'beta'):
+            if kind not in self.mo:
+                continue
+            else:
+                orbitals = self.mo[kind]
 
-        if types is not None:
-            orbitals = orbitals.type(*types)
+            if types is not None:
+                orbitals = orbitals.type(*types)
 
-        if erange is not None:
-            orbitals = orbitals.erange(*erange)
+            if erange is not None:
+                orbitals = orbitals.erange(*erange)
 
-        if pattern is not None:
-            orbitals = orbitals.pattern(pattern)
+            if pattern is not None:
+                orbitals = orbitals.pattern(pattern)
 
-        if order is not None:
-            orbitals = orbitals.sort_basis(order=order)
+            if order is not None:
+                orbitals = orbitals.sort_basis(order=order)
 
-        orbitals.show_symmetry_species()
+            orbitals.show_symmetry_species()
 
-    def guessorb(self, kind='restricted'):
+    def guessorb(self):
         """
-        generate a set of initial molecular orbitals
+        return a set of molecular orbitals that diagonalize the atomic fock matrix.
         """
         guessorb = {}
         Smat_ao = np.asmatrix(self.overlap)
         Fmat_ao = np.asmatrix(self.fockint)
+        Fmat_ao = Smat_ao.T * Fmat_ao * Smat_ao
         for kind in self.mo.keys():
             C_mo = np.asmatrix(self.mo[kind].coefficients)
             E_mo = np.empty(len(self.mo[kind].energies))
@@ -591,7 +593,7 @@ class Wavefunction():
                 U_lowdin = U * np.diag(1/np.sqrt(s)) * U.T
                 Cmat = Cmat * U_lowdin
                 # diagonalize metric Fock
-                Fmat_mo = Cmat.T * Smat_ao.T * Fmat_ao * Smat_ao * Cmat
+                Fmat_mo = Cmat.T * Fmat_ao * Cmat
                 f,U = np.linalg.eigh(Fmat_mo)
                 Cmat = Cmat * U
                 # copy back to correct supsym id
@@ -603,7 +605,7 @@ class Wavefunction():
                                         energies=E_mo[mo_order],
                                         irreps=irreps[mo_order],
                                         basis_set=self.mo[kind].basis_set)
-        return Wavefunction(guessorb, self.basis_set, n_sym=self.n_sym, n_bas=self.n_bas)
+        return guessorb
 
     def salcorb(self, kind='restricted'):
         """
@@ -747,7 +749,7 @@ class Wavefunction():
                 population[kind][center_id-1] += pop
 
         if self.unrestricted:
-            population_total = population['alfa'] + population['beta']
+            population_total = population['alpha'] + population['beta']
         else:
             population_total = population['restricted']
         mulliken_charges = self.basis_set.center_charges - population_total
@@ -812,7 +814,7 @@ class Wavefunction():
 
         unrestricted = f.unrestricted()
         if unrestricted:
-            kinds = ['alfa', 'beta']
+            kinds = ['alpha', 'beta']
         else:
             kinds = ['restricted']
 
@@ -870,7 +872,7 @@ class Wavefunction():
 
         unrestricted = f.unrestricted
         if unrestricted:
-            kinds = ['alfa', 'beta']
+            kinds = ['alpha', 'beta']
         else:
             kinds = ['restricted']
 
