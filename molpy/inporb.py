@@ -97,7 +97,7 @@ class MolcasINPORB():
             for offset in range(sym_offset, sym_offset + nb**2, nb):
                 coefficients[offset:offset+nb] = self.read_block(nb)
             sym_offset += nb**2
-        return arr_to_lst(coefficients, [(nb,nb) for nb in self.n_bas])
+        return coefficients
 
     def read_occ(self, kind='restricted'):
 
@@ -107,7 +107,7 @@ class MolcasINPORB():
         for nb in self.n_bas:
             occupations[sym_offset:sym_offset+nb] = self.read_block(nb, self.occ_blk_size)
             sym_offset += nb
-        return arr_to_lst(occupations, self.n_bas)
+        return occupations
 
     def read_one(self, kind='restricted'):
 
@@ -117,7 +117,7 @@ class MolcasINPORB():
         for nb in self.n_bas:
             energies[sym_offset:sym_offset+nb] = self.read_block(nb, self.one_blk_size)
             sym_offset += nb
-        return arr_to_lst(energies, self.n_bas)
+        return energies
 
     def read_index(self):
 
@@ -131,7 +131,7 @@ class MolcasINPORB():
                 size = min(blk_size, sym_offset + nb - offset)
                 typeindices[offset:offset+size] = np.array([values]).view('U1')
             sym_offset += nb
-        return arr_to_lst(typeindices, self.n_bas)
+        return typeindices
 
     def write_version(self, version):
         self.f.write('#INPORB {:s}\n'.format(version))

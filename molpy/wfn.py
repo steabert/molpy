@@ -721,15 +721,11 @@ class Wavefunction():
         mo = {}
         for kind in kinds:
             f.rewind()
-            mo_vectors = f.read_orb(kind=kind)
             mo_occupations = f.read_occ(kind=kind)
             mo_energies = f.read_one(kind=kind)
             mo_typeindices = f.read_index()
-
-            mo_occupations = lst_to_arr(mo_occupations)
-            mo_energies = lst_to_arr(mo_energies)
-            mo_typeindices = lst_to_arr(mo_typeindices)
-            mo_vectors = la.block_diag(*mo_vectors)
+            mo_vectors = f.read_orb(kind=kind)
+            mo_vectors = reshape_square(mo_vectors, n_bas)
 
             mo[kind] = OrbitalSet(mo_vectors,
                                   types=mo_typeindices,
