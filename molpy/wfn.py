@@ -619,7 +619,6 @@ class Wavefunction():
             center_charges = f.desym_center_charges()
             center_coordinates = f.desym_center_coordinates()
             contracted_ids = f.desym_basis_function_ids()
-            salcs = f.desym_matrix()
         else:
             n_atoms = f.natoms_unique()
             center_labels = f.center_labels()
@@ -645,6 +644,7 @@ class Wavefunction():
             for irrep, nb in enumerate(n_bas):
                 mo_irreps[offset:offset+nb] = irrep
                 offset += nb
+            salcs = f.desym_matrix()
         else:
             mo_irreps = f.supsym_irrep_indices()
 
@@ -693,7 +693,7 @@ class Wavefunction():
         except DataNotAvailable:
             ispin = None
 
-        return cls(mo, basis_set,
+        return cls(mo, basis_set, salcs=salcs,
                    overlap=overlap, fockint=fockint,
                    spinmult=ispin, n_sym=n_sym, n_bas=n_bas)
 
