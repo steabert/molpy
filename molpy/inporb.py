@@ -61,6 +61,7 @@ class MolcasINPORB():
             raise Exception('invalid version number')
 
     def write(self, wfn):
+        wfn = wfn.copy()
         self.write_version(self.version)
         if wfn.unrestricted:
             uhf = 1
@@ -71,6 +72,7 @@ class MolcasINPORB():
         self.write_info(uhf, wfn.n_sym, wfn.n_bas)
         orbs = {}
         for kind in kinds:
+            wfn.mo[kind].sanitize()
             orbs[kind] = wfn.symmetry_blocked_orbitals(kind=kind)
         for kind in kinds:
             self.write_orb((orb.coefficients for orb in orbs[kind]), kind=kind)
