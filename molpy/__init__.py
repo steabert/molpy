@@ -8,6 +8,8 @@ def export(defn):
 from . import mh5
 from . import fchk
 from . import molden
+from . import basis
+from . import orbitals
 from . import wfn
 from . import inporb
 from . import errors
