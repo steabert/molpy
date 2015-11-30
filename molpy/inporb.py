@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 
 from . import export
@@ -61,7 +62,7 @@ class MolcasINPORB():
             raise Exception('invalid version number')
 
     def write(self, wfn):
-        wfn = wfn.copy()
+        wfn = deepcopy(wfn)
         self.write_version(self.version)
         if wfn.unrestricted:
             uhf = 1
