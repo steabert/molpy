@@ -146,6 +146,13 @@ def driver():
                   'an HDF5 or INPORB file, or it does not exist.')
             sys.exit(1)
 
+    if args.desymmetrize:
+        try:
+            wfn.destroy_native_symmetry()
+        except molpy.DataNotAvailable as e:
+            print(e)
+            sys.exit(1)
+
     base, ext = os.path.splitext(args.infile)
 
     if args.guessorb:
