@@ -69,17 +69,17 @@ class MolcasINPORB():
             uhf = 0
             kinds = ['restricted']
         self.write_info(uhf, wfn.n_sym, wfn.n_bas)
+        orbs = {}
         for kind in kinds:
-            orbitals = wfn.mo[kind]
-            orbitals.sanitize()
+            orbs[kind] = wfn.symmetry_blocked_orbitals(kind=kind)
         for kind in kinds:
-            self.write_orb([wfn.mo[kind].coefficients], kind=kind)
+            self.write_orb((orb.coefficients for orb in orbs[kind]), kind=kind)
         for kind in kinds:
-            self.write_occ([wfn.mo[kind].occupations], kind=kind)
+            self.write_occ((orb.occupations for orb in orbs[kind]), kind=kind)
         for kind in kinds:
-            self.write_one([wfn.mo[kind].energies], kind=kind)
+            self.write_one((orb.energies for orb in orbs[kind]), kind=kind)
         for kind in kinds:
-            self.write_index([wfn.mo[kind].types], kind=kind)
+            self.write_index((orb.types for orb in orbs[kind]), kind=kind)
 
     def close(self):
         self.f.close()

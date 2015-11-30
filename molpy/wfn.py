@@ -129,6 +129,43 @@ class Wavefunction():
                                         basis_set=self.mo[kind].basis_set)
         return guessorb
 
+    def destroy_native_symmetry(self):
+        """
+        permanently remove native symmetry from the wavefunction
+        """
+        if self.n_sym > 1:
+            if self.salcs is not None:
+                self.n_sym = 1
+                self.n_bas = sum(self.n_bas)
+                self.salcs = None
+            else:
+                raise InvalidRequest('desymmetrization not possible without SALCs')
+        return
+
+    def symmetry_blocked_orbitals(self, kind='restricted'):
+        """
+        Returns a list of orbital sets, one for each native symmetry. The orbitals
+        will have no basis set information any longer.
+        """
+        orbitals = self.mo[kind].copy()
+        orbitals.basis_set = None
+
+        if self.n_sym == 1:
+            return [orbitals]
+
+        if self.salcs is not None:
+            salcs = self.salcs[orbitals.basis_ids,:]
+            orbitals.coeffients = np.dot(salcs.T, orbitals.coefficients)
+
+        orbital_list = []
+        offset = 0
+        for irrep, nb in enumerate(self.n_bas):
+            mo_set, = np.where(orbitals.irreps == irrep)
+            orbs = orbitals[mo_set].filter_basis(range(offset, offset+nb))
+            orbital_list.append(orbs)
+            offset += nb
+        return orbital_list
+
     def mulliken(self):
         """
         perform a mulliken population analysis
