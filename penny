@@ -37,6 +37,11 @@ def argument_parser():
         help='name of the output file'
         )
     parser.add_argument(
+        '--joinorb',
+        type=str,
+        help='join with orbital file'
+        )
+    parser.add_argument(
         '-c',
         '--convert',
         type=str,
@@ -58,16 +63,33 @@ def argument_parser():
         )
 
     parser.add_argument(
+        '-s',
+        '--salcorb',
+        action='store_true',
+        help='generate starting orbitals from a core-hamiltonian guess and SALCs'
+        )
+
+    parser.add_argument(
         '-p',
         '--print_orbitals',
         action='store_true',
         help='print orbitals'
         )
     parser.add_argument(
+        '--print_symmetry_species',
+        action='store_true',
+        help='print symmetry species'
+        )
+    parser.add_argument(
         '-d',
         '--desymmetrize',
         action='store_true',
         help='remove Molcas native symmetry handling from orbitals'
+        )
+    parser.add_argument(
+        '--symmetrize',
+        action='store_true',
+        help='symmetrize the orbitals'
         )
     parser.add_argument(
         '--supsym',
@@ -155,12 +177,38 @@ def driver():
 
     base, ext = os.path.splitext(args.infile)
 
+    if not args.joinorb is None:
+        if not os.path.isfile(args.joinorb):
+            print('The orbital file to join does not exist.')
+            sys.exit(1)
+        try:
+            orb = molpy.Wavefunction.from_inporb(args.joinorb)
+        except molpy.InvalidRequest:
+            print('You seem to be trying to read a file that is not\n'
+                  'an INPORB file, or it does not exist.')
+            sys.exit(1)
+
+        for key in orb.mo.keys():
+            orb.mo[key].basis_set = wfn.mo[key].basis_set
+
+        wfn.mo = orb.mo
+        wfn.n_sym = orb.n_sym
+        wfn.n_bas = orb.n_bas
+
+
+
+    if args.salcorb:
+        wfn = wfn.salcorb()
+
     if args.guessorb:
         try:
             wfn.mo = wfn.guessorb()
         except molpy.DataNotAvailable as e:
             print(e)
             sys.exit(1)
+
+    if args.symmetrize:
+        wfn = wfn.symmetrize()
 
     if args.convert:
         outpath = args.outfile or '.'.join((base, args.convert))
@@ -191,6 +239,10 @@ def driver():
             wfn.print_orbitals(types=args.typeids, pattern=args.match, order='molcas')
         except molpy.DataNotAvailable:
             wfn.print_orbitals(types=args.typeids, pattern=args.match)
+
+    if args.print_symmetry_species:
+        molpy.tools.print_header('Molecular Orbital Symmetry Species')
+        wfn.print_symmetry_species(types=args.typeids, pattern=args.match)
 
     if args.supsym:
         for kind in wfn.mo.keys():
