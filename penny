@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # Penny is a program that can read Molcas HDF5 and INPORB formats,
 # print the orbitals (and other info) and store the wavefunction
