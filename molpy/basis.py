@@ -1,6 +1,7 @@
 import numpy as np
 
 from . import export
+from .errors import Error, DataNotAvailable
 
 angmom_name = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n']
 

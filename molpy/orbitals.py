@@ -2,6 +2,7 @@ import re
 import numpy as np
 
 from . import export
+from .errors import Error, DataNotAvailable
 
 typename = {
     'f': 'fro',
@@ -103,13 +104,19 @@ class OrbitalSet():
 
     def sort_basis(self, order='molcas'):
 
-        ids = self.basis_set.argsort_ids(self.basis_ids, order=order)
-        return self.filter_basis(ids)
+        try:
+            ids = self.basis_set.argsort_ids(self.basis_ids, order=order)
+            return self.filter_basis(ids)
+        except AttributeError:
+            raise DataNotAvailable('A basis set is required to order basis functions')
 
     def limit_basis(self, limit=3):
 
-        ids = self.basis_set.angmom_ids(self.basis_ids, limit=limit)
-        return self.filter_basis(ids)
+        try:
+            ids = self.basis_set.angmom_ids(self.basis_ids, limit=limit)
+            return self.filter_basis(ids)
+        except AttributeError:
+            raise DataNotAvailable('A basis set is required to limit basis functions')
 
     def __str__(self):
         """

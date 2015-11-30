@@ -180,7 +180,10 @@ def driver():
         f.close()
 
     if args.print_orbitals:
-        wfn.print_orbitals(types=args.typeids, pattern=args.match, order='molcas')
+        try:
+            wfn.print_orbitals(types=args.typeids, pattern=args.match, order='molcas')
+        except molpy.DataNotAvailable:
+            wfn.print_orbitals(types=args.typeids, pattern=args.match)
 
     if args.supsym:
         for kind in wfn.mo.keys():
