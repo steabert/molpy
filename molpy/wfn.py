@@ -136,10 +136,10 @@ class Wavefunction():
         if self.n_sym > 1:
             if self.salcs is not None:
                 self.n_sym = 1
-                self.n_bas = sum(self.n_bas)
+                self.n_bas = [sum(self.n_bas)]
                 self.salcs = None
             else:
-                raise InvalidRequest('desymmetrization not possible without SALCs')
+                raise DataNotAvailable('desymmetrization not possible without SALCs')
         return
 
     def symmetry_blocked_orbitals(self, kind='restricted'):
