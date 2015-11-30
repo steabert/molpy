@@ -1,14 +1,6 @@
 import numpy as np
-from collections import namedtuple
-from scipy import linalg as la
-import re
 
 from . import export
-from .mh5 import MolcasHDF5
-from .inporb import MolcasINPORB
-from .tools import lst_to_arr, argsort, reshape_square
-from .errors import Error, DataNotAvailable
-
 
 angmom_name = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n']
 
@@ -37,8 +29,8 @@ class BasisSet():
         self.n_cgto = self.contracted_ids.shape[0]
         self.n_pgto = self.primitive_ids.shape[0]
 
-        self.cgto_molcas_indices = argsort(self._idtuples_ladder_order)
-        self.cgto_molden_indices = argsort(self._idtuples_updown_order)
+        self.cgto_molcas_indices = self.argsort(self._idtuples_ladder_order)
+        self.cgto_molden_indices = self.argsort(self._idtuples_updown_order)
 
     @property
     def primitive_tree(self):
@@ -201,3 +193,8 @@ class BasisSet():
         cgto_angmom_ids = self.contracted_ids[ids,2]
         selection, = np.where(cgto_angmom_ids <= limit)
         return selection
+
+    @staticmethod
+    def argsort(lst, rank=None):
+        """ sort indices of a list """
+        return np.array(sorted(np.arange(len(lst)), key=lst.__getitem__))

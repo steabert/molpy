@@ -1,8 +1,8 @@
-from . import export
-from .tools import *
-from .errors import InvalidRequest, DataNotAvailable
 import h5py
 import numpy as np
+
+from . import export
+from .errors import InvalidRequest, DataNotAvailable
 
 
 @export
@@ -228,7 +228,7 @@ class MolcasHDF5:
 
     def write(self, wfn):
         self.h5f.attrs['NSYM'] = wfn.n_sym
-        self.h5f.attrs['NBAS'] = lst_to_arr(wfn.n_bas)
+        self.h5f.attrs['NBAS'] = np.array(wfn.n_bas)
         for kind in wfn.mo.keys():
             orbitals = wfn.mo[kind]
             field = self._get_mo_attribute('VECTORS', kind=kind)

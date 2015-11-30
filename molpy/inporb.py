@@ -1,5 +1,4 @@
 from . import export
-from .tools import *
 from .errors import InvalidRequest
 
 
@@ -25,9 +24,9 @@ class MolcasINPORB():
         self.f = open(filename, mode)
 
         if mode.startswith('r'):
-            line = seek_line(self.f, '#INPORB')
+            line = self.seek_line('#INPORB')
             self.version = line.split()[1]
-            seek_line(self.f, '#INFO')
+            self.seek_line('#INFO')
             uhf, self.n_sym, self.wfn_type = (int(val) for val in self._next_noncomment().split())
             if uhf == 1:
                 self.unrestricted = True
@@ -88,7 +87,7 @@ class MolcasINPORB():
 
     def read_orb(self, kind='restricted'):
 
-        seek_line(self.f, self._format_header('ORB', kind=kind))
+        self.seek_line(self._format_header('ORB', kind=kind))
         coefficients = np.empty(sum(self.n_bas**2), dtype=np.float64)
         sym_offset = 0
         for nb in self.n_bas:
@@ -101,7 +100,7 @@ class MolcasINPORB():
 
     def read_occ(self, kind='restricted'):
 
-        seek_line(self.f, self._format_header('OCC', kind=kind))
+        self.seek_line(self._format_header('OCC', kind=kind))
         occupations = np.empty(sum(self.n_bas), dtype=np.float64)
         sym_offset = 0
         for nb in self.n_bas:
@@ -111,7 +110,7 @@ class MolcasINPORB():
 
     def read_one(self, kind='restricted'):
 
-        seek_line(self.f, self._format_header('ONE', kind=kind))
+        self.seek_line(self._format_header('ONE', kind=kind))
         energies = np.empty(sum(self.n_bas), dtype=np.float64)
         sym_offset = 0
         for nb in self.n_bas:
@@ -121,7 +120,7 @@ class MolcasINPORB():
 
     def read_index(self):
 
-        seek_line(self.f, '#INDEX')
+        self.seek_line('#INDEX')
         typeindices = np.empty(sum(self.n_bas), dtype='U1')
         blk_size = 10
         sym_offset = 0
@@ -222,6 +221,13 @@ class MolcasINPORB():
             return '#U' + header + '\n'
         else:
             return '#' + header + '\n'
+
+    def seek_line(self, pattern):
+        """ find the next line starting with a specific string """
+        line = next(self.f)
+        while not line.startswith(pattern):
+            line = next(self.f)
+        return line
 
 
 @export

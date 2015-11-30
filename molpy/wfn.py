@@ -4,12 +4,11 @@ from scipy import linalg as la
 import re
 
 from . import export
-from .mh5 import MolcasHDF5
-from .inporb import MolcasINPORB
-from .tools import lst_to_arr, argsort, reshape_square
-from .errors import Error, DataNotAvailable
 from .basis import BasisSet
 from .orbitals import OrbitalSet
+from .mh5 import MolcasHDF5
+from .inporb import MolcasINPORB
+from .errors import Error, DataNotAvailable
 
 
 @export
@@ -228,7 +227,7 @@ class Wavefunction():
             mo_energies = f.mo_energies(kind=kind)
             mo_typeindices = f.mo_typeindices(kind=kind)
             mo_vectors = f.mo_vectors(kind=kind)
-            mo_vectors = reshape_square(mo_vectors, n_bas)
+            mo_vectors = cls.reshape_square(mo_vectors, n_bas)
 
             if n_sym > 1:
                 mo_vectors = np.dot(salcs, mo_vectors)
@@ -242,7 +241,7 @@ class Wavefunction():
 
         try:
             overlap = f.ao_overlap_matrix()
-            overlap = reshape_square(overlap, n_bas)
+            overlap = cls.reshape_square(overlap, n_bas)
             if overlap is not None and n_sym > 1:
                 overlap = np.dot(np.dot(salcs, overlap), salcs.T)
         except DataNotAvailable:
@@ -250,7 +249,7 @@ class Wavefunction():
 
         try:
             fockint = f.ao_fockint_matrix()
-            fockint = reshape_square(fockint, n_bas)
+            fockint = cls.reshape_square(fockint, n_bas)
             if fockint is not None and n_sym > 1:
                 fockint = np.dot(np.dot(salcs, fockint), salcs.T)
         except DataNotAvailable:
@@ -277,8 +276,8 @@ class Wavefunction():
 
         n_sym = len(n_bas)
 
-        irrep_list = list(np.array([irrep]*nb) for irrep, nb in enumerate(n_bas))
-        mo_irreps = lst_to_arr(irrep_list)
+        irrep_list = [[irrep]*nb for irrep, nb in enumerate(n_bas)]
+        mo_irreps = np.concatenate(irrep_list)
 
         unrestricted = f.unrestricted
         if unrestricted:
@@ -294,7 +293,7 @@ class Wavefunction():
             mo_occupations = f.read_occ(kind=kind)
             mo_energies = f.read_one(kind=kind)
             mo_typeindices = f.read_index()
-            mo_vectors = reshape_square(mo_vectors, n_bas)
+            mo_vectors = cls.reshape_square(mo_vectors, n_bas)
 
             mo[kind] = OrbitalSet(mo_vectors,
                                   types=mo_typeindices,
@@ -303,3 +302,21 @@ class Wavefunction():
                                   occupations=mo_occupations)
 
         return cls(mo, None, n_sym=n_sym, n_bas=n_bas)
+
+    @staticmethod
+    def reshape_square(arr, dims):
+        """
+        Return a block-diagonal array where the blocks are constructed from a
+        flat input array and an array of dimensions for each block. The array
+        is assumed to be layed out in memory using Fortran indexing.
+        """
+        if len(dims) == 1:
+            dim = dims[0]
+            return arr.reshape((dims[0],dims[0]), order='F')
+        lst = []
+        offset = 0
+        for dim in dims:
+            slice_ = arr[offset:offset+dim**2]
+            lst.append(slice_.reshape((dim,dim), order='F'))
+            offset += dim**2
+        return la.block_diag(*lst)
