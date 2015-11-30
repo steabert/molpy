@@ -137,9 +137,10 @@ class MolcasINPORB():
     def write_version(self, version):
         self.f.write('#INPORB {:s}\n'.format(version))
 
-    def write_info(self, uhf, n_sym, n_bas):
+    def write_info(self, uhf, n_sym, n_bas, title=''):
         """ write info block """
         self.f.write('#INFO\n')
+        self.f.write(''.join(['*' + title + '\n']))
         self.f.write((3 * '{:8d}' + '\n').format(uhf,n_sym,0))
         self.f.write((n_sym * '{:8d}' + '\n').format(*n_bas))
         self.f.write((n_sym * '{:8d}' + '\n').format(*n_bas))
