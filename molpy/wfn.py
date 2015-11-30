@@ -214,6 +214,7 @@ class Wavefunction():
             salcs = f.desym_matrix()
         else:
             mo_irreps = f.supsym_irrep_indices()
+            salcs = None
 
         unrestricted = f.unrestricted()
         if unrestricted:
