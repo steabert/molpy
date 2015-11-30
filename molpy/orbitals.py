@@ -4,6 +4,12 @@ import numpy as np
 from . import export
 from .errors import Error, DataNotAvailable
 
+try:
+    import libmsym as msym
+except ImportError:
+    msym = None
+
+
 typename = {
     'f': 'fro',
     'i': 'ina',
@@ -185,6 +191,27 @@ class OrbitalSet():
                 self[indices].sorted(reindex=True).show(cols=cols)
         else:
             self.show(cols=cols)
+
+    def show_symmetry_species(self):
+        if msym is None:
+            raise ImportError('no libmsym installation found')
+        bs = self.basis_set
+
+        elements = [msym.Element(coordinates = Coord, charge = int(Charge))
+                    for Coord, Charge in zip(bs.center_coordinates, bs.center_charges)]
+
+        basis_functions = [msym.RealSphericalHarmonic(element = elements[element_id-1], n = n + l, l = l, m = m)
+                           for [element_id, n, l, m] in bs.contracted_ids]
+
+        with msym.Context(elements = elements, basis_functions = basis_functions) as ctx:
+            point_group = ctx.find_symmetry()
+            species_names = [s.name for s in ctx.character_table.symmetry_species]
+            coefficients = np.asarray(self.coefficients)
+            for offset in range(0,self.n_orb):
+                mo = coefficients[:,offset]
+                #mo /= np.linalg.norm(mo)
+                species_components = ctx.symmetry_species_components(mo)
+                print(offset,': ',' + '.join(['%f %s' % k for k in zip(species_components, species_names) if k[0] > 1.0e-6]))
 
     def sorted(self, reindex=False):
         """
