@@ -8,6 +8,8 @@ from .mh5 import MolcasHDF5
 from .inporb import MolcasINPORB
 from .tools import lst_to_arr, argsort, reshape_square
 from .errors import Error, DataNotAvailable
+from .basis import BasisSet
+from .orbitals import OrbitalSet
 
 
 @export
