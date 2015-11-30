@@ -277,8 +277,11 @@ class Wavefunction():
 
         n_sym = len(n_bas)
 
-        irrep_list = [[irrep]*nb for irrep, nb in enumerate(n_bas)]
-        mo_irreps = np.concatenate(irrep_list)
+        mo_irreps = np.empty(sum(n_bas), dtype=np.int)
+        offset = 0
+        for irrep, nb in enumerate(n_bas):
+            mo_irreps[offset:offset+nb] = irrep
+            offset += nb
 
         unrestricted = f.unrestricted
         if unrestricted:
