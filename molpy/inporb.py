@@ -44,7 +44,7 @@ class MolcasINPORB():
         if self.version == '2.0':
             self.read_block = self._read_block_v20
             self.occ_fmt = ' {:7.4f}'
-            self.one_fmt = ' {:12.4e}'
+            self.one_fmt = ' {:11.4e}'
             self.orb_fmt = ' {:21.14e}'
             self.occ_blk_size = 10
             self.one_blk_size = 10
