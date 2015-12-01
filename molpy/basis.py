@@ -30,8 +30,8 @@ class BasisSet():
         self.n_cgto = self.contracted_ids.shape[0]
         self.n_pgto = self.primitive_ids.shape[0]
 
-        self.cgto_molcas_indices = self.argsort(self._idtuples_ladder_order)
-        self.cgto_molden_indices = self.argsort(self._idtuples_updown_order)
+        self.cgto_molcas_rank = np.argsort(self.argsort(self._idtuples_ladder_order))
+        self.cgto_molden_rank = np.argsort(self.argsort(self._idtuples_updown_order))
 
     @property
     def primitive_tree(self):
@@ -176,12 +176,12 @@ class BasisSet():
             ids = np.arange(self.n_cgto)
 
         if order == 'molcas':
-            selection = self.cgto_molcas_indices[ids]
+            rank = self.cgto_molcas_rank[ids]
         elif order == 'molden':
-            selection = self.cgto_molden_indices[ids]
+            rank = self.cgto_molden_rank[ids]
         else:
             raise Error('invalid order parameter')
-        return selection
+        return np.argsort(rank)
 
     def angmom_ids(self, ids=None, limit=3):
         """
