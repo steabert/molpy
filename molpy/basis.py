@@ -130,7 +130,10 @@ class BasisSet():
             elif l == 1:
                 m_lbl = ['y','z','x'][m+1]
             else:
-                m_lbl = str(m)[::-1]
+                if m == 0:
+                    m_lbl = '0'
+                else:
+                    m_lbl = '{:+d}'.format(m)[::-1]
             label =  '{:6s}{:1s}{:1s}{:2s}'.format(center_lbl, n_lbl, l_lbl, m_lbl)
             label_list.append(label)
         return np.array(label_list, dtype='U')
