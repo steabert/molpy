@@ -19,7 +19,7 @@ except ImportError:
 @export
 class Wavefunction():
     def __init__(self, mo, basis_set, salcs=None,
-                 overlap=None, fockint=None,
+                 overlap=None, fockint=None, densities=None,
                  spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
         if 'alpha' in mo and 'beta' in mo:
@@ -32,6 +32,7 @@ class Wavefunction():
         self.salcs = salcs
         self.overlap = overlap
         self.fockint = fockint
+        self.densities = densities
         self.spinmult = spinmult
         self.n_bas = n_bas
         self.n_sym = n_sym
@@ -445,8 +446,13 @@ class Wavefunction():
         except DataNotAvailable:
             ispin = None
 
+        try:
+            densities = f.densities()
+        except DataNotAvailable:
+            densities = None
+
         return cls(mo, basis_set, salcs=salcs,
-                   overlap=overlap, fockint=fockint,
+                   overlap=overlap, fockint=fockint, densities=densities,
                    spinmult=ispin, n_sym=n_sym, n_bas=n_bas)
 
     @classmethod
