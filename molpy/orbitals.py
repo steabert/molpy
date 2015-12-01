@@ -184,7 +184,7 @@ class OrbitalSet():
     def show_by_irrep(self, cols=10):
 
         if self.n_irreps > 1:
-            for irrep in range(self.n_irreps):
+            for irrep in np.unique(self.irreps):
                 print('symmetry {:d}'.format(irrep+1))
                 print()
                 indices, = np.where(self.irreps == irrep)
