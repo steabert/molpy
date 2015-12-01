@@ -167,13 +167,15 @@ class BasisSet():
             idtuples.append((center, l, n, m))
         return idtuples
 
-    def argsort_ids(self, ids=None, order='molcas'):
+    def argsort_ids(self, ids=None, order=None):
         """
         Reorder the supplied ids of the contracted functions by either
         Molcas or Molden/Gaussian ranking and return an array of indices.
         """
         if ids is None:
             ids = np.arange(self.n_cgto)
+        if order is None:
+            return np.arange(len(ids))
 
         if order == 'molcas':
             rank = self.cgto_molcas_rank[ids]
