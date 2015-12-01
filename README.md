@@ -19,13 +19,13 @@ or converted like so:
 
 ```
 # print the orbitals
-penny <filename>.h5 --print
+penny <filename>.h5 -p
 # filter to only print coefficients from carbon 2pz basis functions
-penny <filename>.h5 --print -m 'C.*2pz'
+penny <filename>.h5 -p -m 'C.*2pz'
 # convert to Molden format
-penny <filename>.h5 --molden
+penny <filename>.h5 -c molden
 # convert to Gaussian formatted checkpoint format
-penny <filename>.h5 --fchk
+penny <filename>.h5 -c fchk
 ```
 
 ## Installation
