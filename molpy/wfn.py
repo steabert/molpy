@@ -342,6 +342,41 @@ class Wavefunction():
         mulliken_charges = self.basis_set.center_charges - population_total
         return mulliken_charges
 
+    def natorb(self, root=1, kind='restricted'):
+        """
+        return a set of natural orbitals that diagonalize the density matrix
+        of a specific root.
+        """
+        if self.densities is None:
+            raise DataNotAvailable('density natrices are missing')
+
+        try:
+            density = self.densities[root-1,:,:]
+        except IndexError:
+            raise DataNotAvailable('density matrix missing for root {:d}'.format(root))
+
+        orbitals = self.mo[kind].copy()
+        irreps = orbitals.irreps
+        types = orbitals.types
+        C_mo = orbitals.coefficients
+        O_mo = orbitals.occupations
+        offset = 0
+        for irrep in np.unique(irreps):
+            for active in ['1', '2', '3']:
+                mo_set, = np.where((irreps == irrep) & (types == active))
+                n_orb = len(mo_set)
+                if n_orb == 0:
+                    continue
+                C_mat = np.asmatrix(C_mo[:,mo_set])
+                dens = density[offset:offset+n_orb,offset:offset+n_orb]
+                s,U = np.linalg.eigh(dens)
+                C_mat = C_mat * U
+                order = np.argsort(-s)
+                C_mo[:,mo_set] = C_mat[:,order]
+                O_mo[mo_set] = s[order]
+                offset += n_orb
+        return orbitals
+
     @staticmethod
     def _print_mo_header(kind=None, width=128, delim='*'):
         if kind is not None:

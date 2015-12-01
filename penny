@@ -63,6 +63,20 @@ def argument_parser():
         )
 
     parser.add_argument(
+        '-n',
+        '--natorb',
+        action='store_true',
+        help='generate natural orbitals (use --root to specify states other than the first)'
+        )
+
+    parser.add_argument(
+        '-r',
+        '--root',
+        type=int,
+        help='limit operations to a spicifc root (e.g. with --natorb)'
+        )
+
+    parser.add_argument(
         '-s',
         '--salcorb',
         action='store_true',
@@ -206,6 +220,12 @@ def driver():
         except molpy.DataNotAvailable as e:
             print(e)
             sys.exit(1)
+
+    if args.natorb:
+        if args.root:
+            wfn.mo['restricted'] = wfn.natorb(root=args.root)
+        else:
+            wfn.mo['restricted'] = wfn.natorb()
 
     if args.symmetrize:
         wfn = wfn.symmetrize()
