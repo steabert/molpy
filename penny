@@ -90,6 +90,12 @@ def argument_parser():
         help='print orbitals'
         )
     parser.add_argument(
+        '-q',
+        '--quick',
+        action='store_true',
+        help='quick print orbitals with default threshold and energy range'
+        )
+    parser.add_argument(
         '--print_symmetry_species',
         action='store_true',
         help='print symmetry species'
@@ -169,7 +175,7 @@ def argument_parser():
 def driver():
     args = argument_parser().parse_args()
 
-    if len(sys.argv) == 2:
+    if args.quick:
         args.print_orbitals = True
         args.threshold = 0.1
         args.erange = (-1.0, 0.5)
