@@ -135,6 +135,11 @@ def argument_parser():
         choices=('f', 'i', '1', '2', '3', 's', 'd'),
         help='only print MOs with selected type ids'
         )
+    parser.add_argument(
+        '--threshold',
+        type=float,
+        help='only print basis functions with contributions over the threshold'
+        )
 
     parser.add_argument(
         '-v',
@@ -256,9 +261,16 @@ def driver():
 
     if args.print_orbitals:
         try:
-            wfn.print_orbitals(types=args.typeids, pattern=args.match, order='molcas')
+            wfn.print_orbitals(
+                types=args.typeids,
+                pattern=args.match,
+                threshold=args.threshold,
+                order='molcas')
         except molpy.DataNotAvailable:
-            wfn.print_orbitals(types=args.typeids, pattern=args.match)
+            wfn.print_orbitals(
+                types=args.typeids,
+                pattern=args.match,
+                threshold=threshold)
 
     if args.print_symmetry_species:
         molpy.tools.print_header('Molecular Orbital Symmetry Species')

@@ -124,6 +124,14 @@ class OrbitalSet():
         except AttributeError:
             raise DataNotAvailable('A basis set is required to limit basis functions')
 
+    def collapse(self, threshold=0.1):
+
+        if threshold is None:
+            return self
+
+        rows = np.logical_or.reduce(abs(self.coefficients) > threshold, axis=1)
+        return self.filter_basis(rows)
+
     def __str__(self):
         """
         returns the Orbital coefficients formatted as columns
@@ -169,7 +177,7 @@ class OrbitalSet():
 
         return '\n'.join(lines)
 
-    def show(self, cols=10):
+    def show(self, cols=10, threshold=None):
         """
         prints the entire orbital set in blocks of cols orbitals
         """
@@ -178,19 +186,19 @@ class OrbitalSet():
             print('no orbitals to show... perhaps you filtered too strictly?')
 
         for offset in range(0, self.n_orb, cols):
-            orbitals = self[offset:offset+cols]
+            orbitals = self[offset:offset+cols].collapse(threshold=threshold)
             print(orbitals)
 
-    def show_by_irrep(self, cols=10):
+    def show_by_irrep(self, cols=10, threshold=None):
 
         if self.n_irreps > 1:
             for irrep in np.unique(self.irreps):
                 print('symmetry {:d}'.format(irrep+1))
                 print()
                 indices, = np.where(self.irreps == irrep)
-                self[indices].sorted(reindex=True).show(cols=cols)
+                self[indices].sorted(reindex=True).show(cols=cols, threshold=threshold)
         else:
-            self.show(cols=cols)
+            self.show(cols=cols, threshold=threshold)
 
     def show_symmetry_species(self):
         if msym is None:
