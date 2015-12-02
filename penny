@@ -143,6 +143,7 @@ def argument_parser():
         help='only print MOs within the selected energy range'
         )
     parser.add_argument(
+        '-h',
         '--threshold',
         type=float,
         help='only print basis functions with contributions over the threshold'
