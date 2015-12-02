@@ -168,8 +168,11 @@ def argument_parser():
 
 def driver():
     args = argument_parser().parse_args()
-    verbose = args.verbose
-    warnings = args.warnings
+
+    if len(sys.argv) == 2:
+        args.print_orbitals = True
+        args.threshold = 0.1
+        args.erange = (-1.0, 0.5)
 
     def check_outfile(outpath):
         if os.path.isfile(outpath) and not args.force:
