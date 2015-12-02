@@ -136,6 +136,13 @@ def argument_parser():
         help='only print MOs with selected type ids'
         )
     parser.add_argument(
+        '-e',
+        '--erange',
+        type=float,
+        nargs=2,
+        help='only print MOs within the selected energy range'
+        )
+    parser.add_argument(
         '--threshold',
         type=float,
         help='only print basis functions with contributions over the threshold'
@@ -264,12 +271,14 @@ def driver():
             wfn.print_orbitals(
                 types=args.typeids,
                 pattern=args.match,
+                erange=args.erange,
                 threshold=args.threshold,
                 order='molcas')
         except molpy.DataNotAvailable:
             wfn.print_orbitals(
                 types=args.typeids,
                 pattern=args.match,
+                erange=args.erange,
                 threshold=threshold)
 
     if args.print_symmetry_species:
