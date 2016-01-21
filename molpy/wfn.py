@@ -19,7 +19,7 @@ except ImportError:
 @export
 class Wavefunction():
     def __init__(self, mo, basis_set, salcs=None,
-                 overlap=None, fockint=None, densities=None,
+                 overlap=None, fockint=None, densities=None, spindens=None,
                  spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
         if 'alpha' in mo and 'beta' in mo:
@@ -33,6 +33,7 @@ class Wavefunction():
         self.overlap = overlap
         self.fockint = fockint
         self.densities = densities
+        self.spindens = spindens
         self.spinmult = spinmult
         self.n_bas = n_bas
         self.n_sym = n_sym
@@ -377,6 +378,41 @@ class Wavefunction():
                 offset += n_orb
         return orbitals
 
+    def spinnatorb(self, root=1, kind='restricted'):
+        """
+        return a set of natural orbitals that diagonalize the spin density matrix
+        of a specific root.
+        """
+        if self.spindens is None:
+            raise DataNotAvailable('spin density natrices are missing')
+
+        try:
+            density = self.spindens[root-1,:,:]
+        except IndexError:
+            raise DataNotAvailable('spin density matrix missing for root {:d}'.format(root))
+
+        orbitals = self.mo[kind].copy()
+        irreps = orbitals.irreps
+        types = orbitals.types
+        C_mo = orbitals.coefficients
+        O_mo = orbitals.occupations
+        offset = 0
+        for irrep in np.unique(irreps):
+            for active in ['1', '2', '3']:
+                mo_set, = np.where((irreps == irrep) & (types == active))
+                n_orb = len(mo_set)
+                if n_orb == 0:
+                    continue
+                C_mat = np.asmatrix(C_mo[:,mo_set])
+                dens = density[offset:offset+n_orb,offset:offset+n_orb]
+                s,U = np.linalg.eigh(dens)
+                C_mat = C_mat * U
+                order = np.argsort(-s)
+                C_mo[:,mo_set] = C_mat[:,order]
+                O_mo[mo_set] = s[order]
+                offset += n_orb
+        return orbitals
+
     @staticmethod
     def _print_mo_header(kind=None, width=128, delim='*'):
         if kind is not None:
@@ -486,8 +522,13 @@ class Wavefunction():
         except DataNotAvailable:
             densities = None
 
+        try:
+            spindens = f.spindens()
+        except DataNotAvailable:
+            spindens = None
+
         return cls(mo, basis_set, salcs=salcs,
-                   overlap=overlap, fockint=fockint, densities=densities,
+                   overlap=overlap, fockint=fockint, densities=densities, spindens=spindens,
                    spinmult=ispin, n_sym=n_sym, n_bas=n_bas)
 
     @classmethod

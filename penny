@@ -70,6 +70,12 @@ def argument_parser():
         )
 
     parser.add_argument(
+        '--spinnatorb',
+        action='store_true',
+        help='generate spin natural orbitals (use --root to specify states other than the first)'
+        )
+
+    parser.add_argument(
         '-r',
         '--root',
         type=int,
@@ -248,6 +254,12 @@ def driver():
             wfn.mo['restricted'] = wfn.natorb(root=args.root)
         else:
             wfn.mo['restricted'] = wfn.natorb()
+
+    if args.spinnatorb:
+        if args.root:
+            wfn.mo['restricted'] = wfn.spinnatorb(root=args.root)
+        else:
+            wfn.mo['restricted'] = wfn.spinnatorb()
 
     if args.symmetrize:
         wfn = wfn.symmetrize()

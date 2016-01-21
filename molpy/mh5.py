@@ -214,6 +214,11 @@ class MolcasHDF5:
         attribute = 'DENSITY_MATRIX'
         return np.asarray(self.maybe_fetch_dset(attribute))
 
+    def spindens(self):
+
+        attribute = 'SPINDENSITY_MATRIX'
+        return np.asarray(self.maybe_fetch_dset(attribute))
+
     def supsym_irrep_indices(self):
 
         try:
