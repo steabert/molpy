@@ -315,7 +315,7 @@ class Wavefunction():
             offset += nb
         return orbital_list
 
-    def mulliken(self):
+    def mulliken_charges(self):
         """
         perform a mulliken population analysis
         """

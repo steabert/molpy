@@ -318,8 +318,11 @@ def driver():
                 print(len(mo_set), '  ', *(1+mo_set))
 
     if args.mulliken:
-        for center, charge in zip(wfn.basis_set.center_labels, wfn.mulliken()):
-            print(center, charge)
+        labels = wfn.basis_set.center_labels
+        coords = wfn.basis_set.center_coordinates
+        charges = wfn.mulliken_charges()
+        for center, coord, charge in zip(labels, coords, charges):
+            print('{:10s} {:f} {:f} {:f} {:f}'.format(center, coord, charge))
 
 if __name__ == '__main__':
     driver()
