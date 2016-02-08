@@ -270,7 +270,7 @@ class OrbitalSet():
         returns a new orbital set where the basis functions have been
         filtered as those which labels are matching the supplied regex.
         """
-        matching = [bool(re.search(regex, label)) for label in self.basis_set.labels]
+        matching = [bool(re.search(regex, label, re.IGNORECASE)) for label in self.basis_set.labels]
 
         return self.filter_basis(np.asarray(matching))
 
