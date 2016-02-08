@@ -288,6 +288,9 @@ def driver():
             sys.exit(1)
         f.close()
 
+    if args.root:
+        print('Analysis for root {:d}'.format(args.root))
+
     if args.print_orbitals:
         try:
             wfn.print_orbitals(
@@ -304,7 +307,7 @@ def driver():
                 threshold=threshold)
 
     if args.print_symmetry_species:
-        molpy.tools.print_header('Molecular Orbital Symmetry Species')
+        print('Molecular Orbital Symmetry Species')
         wfn.print_symmetry_species(types=args.index, pattern=args.match)
 
     if args.supsym:
