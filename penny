@@ -45,7 +45,7 @@ def argument_parser():
         '-c',
         '--convert',
         type=str,
-        choices=('inporb', 'inporb11', 'inporb20', 'h5', 'fchk', 'molden'),
+        choices=('inporb', 'inporb11', 'inporb20', 'h5', 'fchk', 'molden', 'moldengv'),
         help='output format'
         )
     parser.add_argument(
@@ -278,6 +278,7 @@ def driver():
             'inporb11': molpy.MolcasINPORB11,
             'inporb20': molpy.MolcasINPORB20,
             'molden': molpy.MolcasMOLDEN,
+            'moldengv': molpy.MolcasMOLDENGV,
             'fchk': molpy.MolcasFCHK,
             }
         f = FileFormat[args.convert](outpath, 'w')

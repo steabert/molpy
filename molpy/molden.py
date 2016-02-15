@@ -8,8 +8,9 @@ from . import export
 class MolcasMOLDEN:
     mx_angmom = 3
 
-    def __init__(self, filename, mode):
+    def __init__(self, filename, mode, strict=True):
         self.f = open(filename, mode)
+        self.strict = strict
 
     def close(self):
         self.f.close()
@@ -35,7 +36,8 @@ class MolcasMOLDEN:
             charge = nuclear_charge + electronic_charge
 
         self.write_header()
-        self.write_natoms(n_atoms)
+        if not self.strict:
+            self.write_natoms(n_atoms)
 
         basis = wfn.basis_set
         labels = basis.center_labels
@@ -43,10 +45,11 @@ class MolcasMOLDEN:
         coords = basis.center_coordinates
         self.write_atoms(labels, charges, coords)
 
-        mulliken_charges = wfn.mulliken_charges()
-        if np.logical_or.reduce(np.isnan(mulliken_charges)):
-            mulliken_charges.fill(0)
-        self.write_mulliken(mulliken_charges)
+        if not self.strict:
+            mulliken_charges = wfn.mulliken_charges()
+            if np.logical_or.reduce(np.isnan(mulliken_charges)):
+                mulliken_charges.fill(0)
+            self.write_mulliken(mulliken_charges)
 
         self.write_gto(wfn.basis_set.primitive_tree)
 
@@ -57,14 +60,14 @@ class MolcasMOLDEN:
             self.write_mo(orbitals, kind=kind)
 
     def write_header(self):
-        self.f.write('[MOLDEN FORMAT]\n')
+        self.f.write('[Molden Format]\n')
 
     def write_natoms(self, natoms):
         self.f.write('[N_ATOMS]\n')
         self.f.write('{:12d}\n'.format(natoms))
 
     def write_atoms(self, labels, charges, coords):
-        self.f.write('[ATOMS] (AU)\n')
+        self.f.write('[Atoms] (AU)\n')
         center_properties = zip(labels, charges, coords)
         template = '{:s} {:7d} {:7d} {:14.7f} {:14.7f} {:14.7f}\n'
         for idx, (lbl, charge, coord,) in enumerate(center_properties):
@@ -108,3 +111,9 @@ class MolcasMOLDEN:
             self.f.write('Occup = {:10.5f}\n'.format(occ))
             for idx, coef, in enumerate(mo):
                 self.f.write('{:4d}   {:16.8f}\n'.format(idx+1, coef))
+
+
+@export
+class MolcasMOLDENGV(MolcasMOLDEN):
+    def __init__(self, filename, mode):
+        super().__init__(filename, mode, strict=False)
