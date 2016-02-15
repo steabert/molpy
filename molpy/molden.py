@@ -43,10 +43,10 @@ class MolcasMOLDEN:
         coords = basis.center_coordinates
         self.write_atoms(labels, charges, coords)
 
-        mulliken_charges = wfn.mulliken()
+        mulliken_charges = wfn.mulliken_charges()
         if np.logical_or.reduce(np.isnan(mulliken_charges)):
             mulliken_charges.fill(0)
-        self.write_mulliken(wfn.mulliken())
+        self.write_mulliken(mulliken_charges)
 
         self.write_gto(wfn.basis_set.primitive_tree)
 
