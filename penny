@@ -1,16 +1,36 @@
 #!/usr/bin/env python3
+#
+# penny.py -- frontend to the molpy module
+#
+# Penny is a program designed to read Molcas HDF5 and INPORB formats, print the
+# orbitals (and other info) and store the wavefunction information in a range of
+# formats (Molcas HDF5, Molcas INPORB, Molden formatted file, Gaussian formatted
+# checkpoint file) The purpose of this program is to be able to use Molcas data
+# in other programs, connecting Molcas a wider world. This program is named
+# after Penny river in Alaska, connecting the land to the sea, and eventually to
+# the ocean.
+#
+# Copyright (c) 2016  Steven Vancoillie
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Written by Steven Vancoillie.
+#
+# Modified by Marcus Johansson to add SALC support.
+#
 
-# Penny is a program that can read Molcas HDF5 and INPORB formats,
-# print the orbitals (and other info) and store the wavefunction
-# information in a range of formats (Molcas HDF5, Molcas INPORB,
-# Molden formatted file, Gaussian formatted checkpoint file)
-
-# The purpose of this program is to be able to use Molcas data in other
-# programs, connecting Molcas a wider world.
-# This program is named after Penny river in Alaska,
-# connecting the land to the sea, and eventually to the ocean.
-
-# Steven Vancoillie, summer-fall 2015
 
 import os
 import sys

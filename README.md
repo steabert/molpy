@@ -48,3 +48,9 @@ can be best asked on the [Molcas Forum](https://cobalt.itc.univie.ac.at/molcasfo
 
 Issues with the package itself are handled through the
 [issue tracker](https://github.com/steabert/molpy/issues) on github.
+
+## Contributing
+The code is released under the GNU GPLv2 license. If you wish to contribute,
+pull requests are welcome, provided they include a "Modified by" sentence below
+the "Written by" section in the header of the file, with your name and a short
+explanation of what changes were made.
