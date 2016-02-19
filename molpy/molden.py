@@ -93,8 +93,9 @@ class MolcasMOLDEN:
         self.f.write('[Atoms] (AU)\n')
         center_properties = zip(labels, charges, coords)
         template = '{:s} {:7d} {:7d} {:14.7f} {:14.7f} {:14.7f}\n'
-        for idx, (lbl, charge, coord,) in enumerate(center_properties):
-            self.f.write(template.format(lbl, idx+1, int(charge), *coord))
+        for i, (label, charge, coord,) in enumerate(center_properties):
+            label_nospaces = label.replace(' ','')
+            self.f.write(template.format(label_nospaces, i+1, int(charge), *coord))
         self.f.write('[5D]\n')
         self.f.write('[7F]\n')
 
