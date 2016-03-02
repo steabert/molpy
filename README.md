@@ -30,17 +30,29 @@ penny <filename>.h5 -c fchk
 
 ## Installation
 Make sure your are using Python 3!
-Molpy can be installed for the current user with
+
+Molpy can be installed directly from PyPI, using:
 ```
-python setup.py install --user
+pip3 install molpy --user
 ```
 or system-wide with
 ```
-python setup.py install
+pip3 install molpy
 ```
 With the user-specific installation, the penny program will
 end up in `~/.local/bin/penny`, so you either need to add
 `~/.local/bin/` to your path, or make a link to the script.
+
+Alternatively, you can download one of the releases from the
+download section, and run one of the following commands inside
+the project root directory:
+```
+python3 setup.py install --user
+```
+or system-wide with
+```
+python3 setup.py install
+```
 
 ## Help
 Questions regarding the use of molpy together with Molcas
