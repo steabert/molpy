@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='molpy',
-      version='1.0',
+      version='2.0a',
       description='A package to handle Molcas wavefunction data',
       license='GNU GPLv2',
       author='Steven Vancoillie',
