@@ -96,10 +96,16 @@ def argument_parser():
         )
 
     parser.add_argument(
+        '--readorb',
+        type=str,
+        help='read specific orbitals as created by wfa_molcas.x'
+    )
+
+    parser.add_argument(
         '-r',
         '--root',
         type=int,
-        help='limit operations to a spicifc root (e.g. with --natorb)'
+        help='limit operations to a specifc root (e.g. with --natorb)'
         )
 
     parser.add_argument(
@@ -280,6 +286,14 @@ def driver():
             wfn.mo['restricted'] = wfn.spinnatorb(root=args.root)
         else:
             wfn.mo['restricted'] = wfn.spinnatorb()
+
+    if args.readorb:
+        print("Reading %s ..."%args.readorb)
+        wfn.read_orb_desym(filename=args.infile, orbtype=args.readorb)
+        if not args.outfile:
+            args.outfile = '%s.molden'%args.readorb
+        # or loop over all orbitals:
+        # for h5 in self.h5f: if "DESYM" in h5
 
     if args.symmetrize:
         wfn = wfn.symmetrize()

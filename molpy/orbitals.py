@@ -60,7 +60,7 @@ class OrbitalSet():
         self.n_orb = coefficients.shape[1]
 
         if irreps is None:
-            self.irreps = np.zeros(self.n_bas)
+            self.irreps = np.zeros(self.n_bas, int)
             self.n_irreps = 1
         else:
             self.irreps = irreps

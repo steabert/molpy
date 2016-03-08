@@ -436,6 +436,36 @@ class Wavefunction():
                 offset += n_orb
         return orbitals
 
+    def read_orb_desym(self, filename, orbtype='MO'):
+        """
+        Read a desymmetrized set of orbitals from the HDF5 file.
+        """
+        f = MolcasHDF5(filename, 'r')
+
+        if self.unrestricted:
+            kinds = ['alpha', 'beta']
+        else:
+            kinds = ['restricted']
+
+        n_bas_t = sum(bas for bas in self.n_bas)
+        for kind in kinds:
+            mo_occupations = f.mo_occupations(kind=kind, orbtype="DESYM_" + orbtype)
+            mo_energies = f.mo_energies(kind=kind, orbtype="DESYM_" + orbtype)
+
+            C_mat = f.mo_vectors(kind=kind, orbtype="DESYM_" + orbtype)
+            if np.isnan(C_mat[0]):
+                raise Exception("""
+    Data set %s,
+    for kind %s
+    could not be read!
+    """%("DESYM_" + orbtype, kind))
+            assert len(C_mat)%n_bas_t == 0, "Inconsistent MO-coefficients"
+
+            self.mo[kind] = OrbitalSet(C_mat.reshape((n_bas_t, len(C_mat)//n_bas_t), order='F'),
+                                  energies=mo_energies,
+                                  occupations=mo_occupations,
+                                  basis_set=self.basis_set)
+
     @staticmethod
     def _print_mo_header(kind=None, width=128, delim='*'):
         if kind is not None:
