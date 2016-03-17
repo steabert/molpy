@@ -113,8 +113,11 @@ class MolcasMOLDEN:
                 if angmom['value'] > self.mx_angmom:
                     continue
                 for shell in angmom['shells']:
-                    self.f.write('   {:1s}{:4d}\n'.format(l[angmom['value']], len(shell['exponents'])))
-                    for exp, coef, in zip(shell['exponents'], shell['coefficients']):
+                    pgto_selection = np.where(shell['coefficients'] > 1.0e-15)
+                    exponents = shell['exponents'][pgto_selection]
+                    coefficients = shell['coefficients'][pgto_selection]
+                    self.f.write('   {:1s}{:4d}\n'.format(l[angmom['value']], len(exponents)))
+                    for exp, coef, in zip(exponents, coefficients):
                         self.f.write('{:17.9e} {:17.9e}\n'.format(exp, coef))
             self.f.write('\n')
 
