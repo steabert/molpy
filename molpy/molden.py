@@ -58,54 +58,53 @@ class MolcasMOLDEN:
         else:
             charge = nuclear_charge + electronic_charge
 
-        self.write_header()
+        self.f.write('[Molden Format]\n')
+
         if not self.strict:
+            self.f.write('[N_ATOMS]\n')
             self.write_natoms(n_atoms)
 
+        self.f.write('[Atoms] (AU)\n')
         basis = wfn.basis_set
         labels = basis.center_labels
         charges = basis.center_charges
         coords = basis.center_coordinates
         self.write_atoms(labels, charges, coords)
+        self.f.write('[5D]\n')
+        self.f.write('[7F]\n')
 
         if not self.strict:
+            self.f.write('[CHARGE] (MULLIKEN)\n')
             mulliken_charges = wfn.mulliken_charges()
             if np.logical_or.reduce(np.isnan(mulliken_charges)):
                 mulliken_charges.fill(0)
             self.write_mulliken(mulliken_charges)
 
+        self.f.write('[GTO] (AU)\n')
         self.write_gto(wfn.basis_set.primitive_tree)
 
+        self.f.write('[MO]\n')
         for kind, orbitals in wfn.mo.items():
             orbitals = orbitals.sort_basis(order='molden')
             orbitals = orbitals.limit_basis(limit=self.mx_angmom)
             orbitals.sanitize()
             self.write_mo(orbitals, kind=kind)
 
-    def write_header(self):
-        self.f.write('[Molden Format]\n')
-
     def write_natoms(self, natoms):
-        self.f.write('[N_ATOMS]\n')
         self.f.write('{:12d}\n'.format(natoms))
 
     def write_atoms(self, labels, charges, coords):
-        self.f.write('[Atoms] (AU)\n')
         center_properties = zip(labels, charges, coords)
         template = '{:s} {:7d} {:7d} {:14.7f} {:14.7f} {:14.7f}\n'
         for i, (label, charge, coord,) in enumerate(center_properties):
             label_nospaces = label.replace(' ','')
             self.f.write(template.format(label_nospaces, i+1, int(charge), *coord))
-        self.f.write('[5D]\n')
-        self.f.write('[7F]\n')
 
     def write_mulliken(self, charges):
-        self.f.write('[CHARGE] (MULLIKEN)\n')
         for charge in charges:
             self.f.write('{:f}\n'.format(charge))
 
     def write_gto(self, basisset):
-        self.f.write('[GTO] (AU)\n')
         l = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'k', 'l', 'm', 'n']
         for center in basisset:
             self.f.write('{:4d}\n'.format(center['id']))
@@ -123,7 +122,6 @@ class MolcasMOLDEN:
             spin = 'alpha'
         else:
             spin = kind
-        self.f.write('[MO]\n')
         for irrep, ene, occ, mo in zip(
                 orbitals.irreps,
                 orbitals.energies,
