@@ -29,7 +29,7 @@ from . import export
 
 @export
 class MolcasMOLDEN:
-    mx_angmom = 3
+    mx_angmom = 4
 
     def __init__(self, filename, mode, strict=True):
         self.f = open(filename, mode)
