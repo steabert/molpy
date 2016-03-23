@@ -42,7 +42,7 @@ except ImportError:
 @export
 class Wavefunction():
     def __init__(self, mo, basis_set, salcs=None,
-                 overlap=None, fockint=None, densities=None, spindens=None,
+                 densities=None, spindens=None,
                  spinmult=None, n_bas=None, n_sym=None):
         self.mo = mo
         if 'alpha' in mo and 'beta' in mo:
@@ -53,8 +53,6 @@ class Wavefunction():
             raise Exception('invalid key(s) in mo dict')
         self.basis_set = basis_set
         self.salcs = salcs
-        self.overlap = overlap
-        self.fockint = fockint
         self.densities = densities
         self.spindens = spindens
         self.spinmult = spinmult
@@ -147,12 +145,12 @@ class Wavefunction():
         """
         return a set of molecular orbitals that diagonalize the atomic fock matrix.
         """
-        if self.overlap is None or self.fockint is None:
+        if self.basis_set.overlap is None or self.basis_set.fockint is None:
             raise DataNotAvailable('guessorb is missing the overlap and/or fockint matrix')
 
         guessorb = {}
-        Smat_ao = np.asmatrix(self.overlap)
-        Fmat_ao = np.asmatrix(self.fockint)
+        Smat_ao = np.asmatrix(self.basis_set.overlap)
+        Fmat_ao = np.asmatrix(self.basis_set.fockint)
         Fmat_ao = Smat_ao.T * Fmat_ao * Smat_ao
         for kind in self.mo.keys():
             C_mo = np.asmatrix(self.mo[kind].coefficients)
@@ -190,8 +188,8 @@ class Wavefunction():
 
         symorb = {}
 
-        Smat_ao = np.asmatrix(self.overlap)
-        Fmat_ao = np.asmatrix(self.fockint)
+        Smat_ao = np.asmatrix(self.basis_set.overlap)
+        Fmat_ao = np.asmatrix(self.basis_set.fockint)
 
         bs = self.basis_set
 
@@ -276,7 +274,7 @@ class Wavefunction():
         basis_functions = [msym.RealSphericalHarmonic(element = elements[element_id-1], n = n + l, l = l, m = m)
                            for [element_id, n, l, m] in bs.contracted_ids]
 
-        Smat_ao = np.asmatrix(self.overlap)
+        Smat_ao = np.asmatrix(self.basis_set.overlap)
 
         symorb = {}
 
@@ -342,8 +340,8 @@ class Wavefunction():
         """
         perform a mulliken population analysis
         """
-        if self.overlap is not None:
-            Smat_ao = np.asmatrix(self.overlap)
+        if self.basis_set.overlap is not None:
+            Smat_ao = np.asmatrix(self.basis_set.overlap)
         else:
             raise Exception('mulliken analysis is missing the overlap matrix')
 
@@ -474,16 +472,6 @@ class Wavefunction():
         primitive_ids = f.primitive_ids()
         primitives = f.primitives()
 
-
-        basis_set = BasisSet(
-                center_labels,
-                center_charges,
-                center_coordinates,
-                contracted_ids,
-                primitive_ids,
-                primitives,
-                )
-
         if n_sym > 1:
             mo_irreps = np.empty(sum(n_bas), dtype=np.int)
             offset = 0
@@ -494,6 +482,33 @@ class Wavefunction():
         else:
             mo_irreps = f.supsym_irrep_indices()
             salcs = None
+
+        try:
+            overlap = f.ao_overlap_matrix()
+            overlap = cls.reshape_square(overlap, n_bas)
+            if overlap is not None and n_sym > 1:
+                overlap = np.dot(np.dot(salcs, overlap), salcs.T)
+        except DataNotAvailable:
+            overlap = None
+
+        try:
+            fockint = f.ao_fockint_matrix()
+            fockint = cls.reshape_square(fockint, n_bas)
+            if fockint is not None and n_sym > 1:
+                fockint = np.dot(np.dot(salcs, fockint), salcs.T)
+        except DataNotAvailable:
+            fockint = None
+
+        basis_set = BasisSet(
+                center_labels,
+                center_charges,
+                center_coordinates,
+                contracted_ids,
+                primitive_ids,
+                primitives,
+                overlap,
+                fockint,
+                )
 
         unrestricted = f.unrestricted()
         if unrestricted:
@@ -520,22 +535,6 @@ class Wavefunction():
                                   basis_set=basis_set)
 
         try:
-            overlap = f.ao_overlap_matrix()
-            overlap = cls.reshape_square(overlap, n_bas)
-            if overlap is not None and n_sym > 1:
-                overlap = np.dot(np.dot(salcs, overlap), salcs.T)
-        except DataNotAvailable:
-            overlap = None
-
-        try:
-            fockint = f.ao_fockint_matrix()
-            fockint = cls.reshape_square(fockint, n_bas)
-            if fockint is not None and n_sym > 1:
-                fockint = np.dot(np.dot(salcs, fockint), salcs.T)
-        except DataNotAvailable:
-            fockint = None
-
-        try:
             ispin = f.ispin()
         except DataNotAvailable:
             ispin = None
@@ -551,7 +550,7 @@ class Wavefunction():
             spindens = None
 
         return cls(mo, basis_set, salcs=salcs,
-                   overlap=overlap, fockint=fockint, densities=densities, spindens=spindens,
+                   densities=densities, spindens=spindens,
                    spinmult=ispin, n_sym=n_sym, n_bas=n_bas)
 
     @classmethod
