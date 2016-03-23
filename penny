@@ -351,8 +351,13 @@ def driver():
         labels = wfn.basis_set.center_labels
         coords = wfn.basis_set.center_coordinates
         charges = wfn.mulliken_charges()
+        header = '{:10s}' + 3 * ' {:>14s}' + ' {:>9s}'
+        body = '{:10s}' + 3 * ' {:14.7f}' + ' {:9.2f}'
+        print('mulliken charges')
+        print(header.format('center','x','y','z','charge'))
+        print(header.format('------','-','-','-','------'))
         for center, coord, charge in zip(labels, coords, charges):
-            print('{:10s} {:f} {:f} {:f} {:f}'.format(center, coord, charge))
+            print(body.format(center, *coord, charge))
 
 if __name__ == '__main__':
     driver()
