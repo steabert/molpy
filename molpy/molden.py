@@ -72,6 +72,7 @@ class MolcasMOLDEN:
         self.write_atoms(labels, charges, coords)
         self.f.write('[5D]\n')
         self.f.write('[7F]\n')
+        self.f.write('[9G]\n')
 
         if not self.strict:
             self.f.write('[CHARGE] (MULLIKEN)\n')
