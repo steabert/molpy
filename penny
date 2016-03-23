@@ -180,6 +180,11 @@ def argument_parser():
         type=float,
         help='only print basis functions with contributions over the threshold'
         )
+    parser.add_argument(
+        '--popan',
+        action='store_true',
+        help='print orbitals as AO weights (CxSC instead of C)'
+        )
 
     parser.add_argument(
         '-v',
@@ -319,7 +324,8 @@ def driver():
                 pattern=args.match,
                 erange=args.erange,
                 threshold=args.threshold,
-                order='molcas')
+                order='molcas',
+                weights=args.popan)
         except molpy.DataNotAvailable:
             wfn.print_orbitals(
                 types=args.index,

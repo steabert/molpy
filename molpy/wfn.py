@@ -93,7 +93,7 @@ class Wavefunction():
         nuclear_charge = int(np.sum(self.basis_set.center_charges))
         return (n_atoms, nuclear_charge)
 
-    def print_orbitals(self, types=None, erange=None, pattern=None, order=None, threshold=None):
+    def print_orbitals(self, types=None, erange=None, pattern=None, order=None, threshold=None, weights=False):
 
         for kind in ('restricted', 'alpha', 'beta'):
             if kind not in self.mo:
@@ -112,6 +112,9 @@ class Wavefunction():
 
             if order is not None:
                 orbitals = orbitals.sort_basis(order=order)
+
+            if weights:
+                orbitals = orbitals.gpop()
 
             self._print_mo_header(kind=kind)
             if self.n_sym > 1:

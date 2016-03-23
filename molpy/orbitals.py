@@ -309,3 +309,16 @@ class OrbitalSet():
 
         selection = np.where(self.types == '-')
         self.types[selection] = 's'
+
+    def gpop(self):
+        """
+        Replace the coefficients of the orbitals with their AO weights, effectively
+        replacing the matrix C with C x SC.
+        """
+        orbitals = self.copy()
+        cols = np.array([orbitals.basis_ids])
+        rows = cols.T
+        S_mat = orbitals.basis_set.overlap[rows,cols]
+        C_mat = orbitals.coefficients
+        orbitals.coefficients = np.multiply(C_mat,np.dot(S_mat,C_mat))
+        return orbitals
