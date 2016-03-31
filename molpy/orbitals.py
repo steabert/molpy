@@ -168,6 +168,9 @@ class OrbitalSet():
         returns the Orbital coefficients formatted as columns
         """
 
+        if self.n_bas == 0:
+            return ''
+
         prefix = '{:16s}'
         int_template = prefix + self.n_orb * '{:10d}'
         float_template = prefix + self.n_orb * '{:10.4f}'
@@ -208,6 +211,7 @@ class OrbitalSet():
             line = float_template.format(labels[ibas], *np.ravel(self.coefficients[ibas,:]))
             lines.append(line)
 
+        lines.append('')
         lines.append('')
 
         return '\n'.join(lines)
