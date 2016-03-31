@@ -161,7 +161,8 @@ class OrbitalSet():
             return self
 
         rows = np.logical_or.reduce(abs(self.coefficients) > threshold, axis=1)
-        return self.filter_basis(rows)
+        cols = np.logical_or.reduce(abs(self.coefficients) > threshold, axis=0)
+        return self.filter_basis(rows)[cols]
 
     def __str__(self):
         """
@@ -224,9 +225,10 @@ class OrbitalSet():
         if self.n_orb == 0:
             print('no orbitals to show... perhaps you filtered too strictly?')
 
-        for offset in range(0, self.n_orb, cols):
-            orbitals = self[offset:offset+cols].collapse(threshold=threshold)
-            print(orbitals)
+        orbitals = self.collapse(threshold=threshold)
+
+        for offset in range(0, orbitals.n_orb, cols):
+            print(orbitals[offset:offset+cols], end='')
 
     def show_by_irrep(self, cols=10, threshold=None):
 
