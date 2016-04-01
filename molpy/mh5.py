@@ -191,6 +191,13 @@ class MolcasHDF5:
             typeindices = np.array(['-'] * sum(self.n_bas), dtype='U')
         return typeindices
 
+    def set_mo_typeindices(self, typeindices, kind='restricted'):
+
+        attribute = self._get_mo_attribute('TYPEINDICES', kind=kind)
+        dset = self.h5f[attribute]
+        data = np.asarray(np.char.upper(typeindices), dtype='S1')
+        dset[...] = data
+
     def mo_occupations(self, kind='restricted'):
 
         attribute = self._get_mo_attribute('OCCUPATIONS', kind=kind)

@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+#
+# sheldon.py -- frontend to the molpy module
+#
+# Sheldon is a program designed to modify data inside Molcas HDF5 formats,
+# e.g. type indices.
+#
+# Copyright (c) 2016  Steven Vancoillie
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Written by Steven Vancoillie.
+#
+
+
+import os
+import sys
+import argparse
+import numpy as np
+
+import molpy
+
+
+def argument_parser():
+    parser = argparse.ArgumentParser(
+        description="""
+        Dataset modification for Molcas HDF5 files.
+        """)
+
+    subparsers = parser.add_subparsers(help='sub-command help', dest='command')
+
+    parser_typeid = subparsers.add_parser('typeid', help='typeid help')
+
+    parser_typeid.add_argument(
+        '--frozen',
+        type=int,
+        nargs='*',
+        help='set type ID to frozen for selected MO Indices'
+        )
+    parser_typeid.add_argument(
+        '--inactive',
+        type=int,
+        nargs='*',
+        help='set type ID to inactive for selected MO Indices'
+        )
+    parser_typeid.add_argument(
+        '--ras1',
+        type=int,
+        nargs='*',
+        help='set type ID to RAS1 for selected MO Indices'
+        )
+    parser_typeid.add_argument(
+        '--ras2',
+        type=int,
+        nargs='*',
+        help='set type ID to RAS2 for selected MO Indices'
+        )
+    parser_typeid.add_argument(
+        '--ras3',
+        type=int,
+        nargs='*',
+        help='set type ID to RAS3 for selected MO Indices'
+        )
+    parser_typeid.add_argument(
+        '--secondary',
+        type=int,
+        nargs='*',
+        help='set type ID to secundary for selected MO Indices'
+        )
+    parser_typeid.add_argument(
+        '--deleted',
+        type=int,
+        nargs='*',
+        help='set type ID to deleted for selected MO Indices'
+        )
+    parser.add_argument(
+        'infile',
+        type=str,
+        help='name of the Molcas INPORB/HDF5 input file'
+        )
+
+    return parser
+
+
+
+def driver():
+    args = argument_parser().parse_args()
+
+    if not os.path.isfile(args.infile):
+        print('The input file does not exist.')
+        sys.exit(1)
+    try:
+        f = molpy.MolcasHDF5(args.infile, 'r+')
+    except molpy.InvalidRequest:
+        print('You seem to be trying to read a file that is not\n'
+              'a (Molcas) HDF5 file, or it does not exist.')
+        sys.exit(1)
+
+    unrestricted = f.unrestricted()
+    if unrestricted:
+        kinds = ['alpha', 'beta']
+    else:
+        kinds = ['restricted']
+
+    if args.command == 'typeid':
+        typeindices = {}
+        for kind in kinds:
+            typeindices[kind] = f.mo_typeindices(kind=kind)
+
+        if args.frozen:
+            for kind in kinds:
+                typeindices[kind][args.frozen] = 'F'
+        if args.inactive:
+            for kind in kinds:
+                typeindices[kind][args.inactive] = 'I'
+        if args.ras1:
+            for kind in kinds:
+                typeindices[kind][args.ras1] = '1'
+        if args.ras2:
+            for kind in kinds:
+                typeindices[kind][args.ras2] = '2'
+        if args.ras3:
+            for kind in kinds:
+                typeindices[kind][args.ras3] = '3'
+        if args.secondary:
+            for kind in kinds:
+                typeindices[kind][args.secondary] = 'S'
+        if args.deleted:
+            for kind in kinds:
+                typeindices[kind][args.deleted] = 'D'
+
+        for kind in kinds:
+            f.set_mo_typeindices(typeindices[kind], kind=kind)
+
+    f.close()
+
+if __name__ == '__main__':
+    driver()
