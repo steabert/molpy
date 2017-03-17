@@ -96,9 +96,10 @@ def argument_parser():
         )
 
     parser.add_argument(
-        '--readorb',
+        '--wfaorbs',
         type=str,
-        help='read specific orbitals as created by wfa_molcas.x'
+        choices=('fchk', 'molden', 'moldengv'),
+        help='Convert orbitals created by the WFA module to the specified format'
     )
 
     parser.add_argument(
@@ -292,13 +293,26 @@ def driver():
         else:
             wfn.mo['restricted'] = wfn.spinnatorb()
 
-    if args.readorb:
-        print("Reading %s ..."%args.readorb)
-        wfn.read_orb_desym(filename=args.infile, orbtype=args.readorb)
-        if not args.outfile:
-            args.outfile = '%s.molden'%args.readorb
-        # or loop over all orbitals:
-        # for h5 in self.h5f: if "DESYM" in h5
+    if args.wfaorbs:
+        print("Reading WFA orbitals")
+        wfaorbs = wfn.read_wfaorbs(filename=args.infile)
+        for orbtype, orbs in wfaorbs.items():
+            wfn.mo['restricted'] = orbs
+
+            outpath = '.'.join((base, orbtype, args.wfaorbs))
+            print("Writing %s ..."%outpath)
+            FileFormat = {
+                'molden': molpy.MolcasMOLDEN,
+                'moldengv': molpy.MolcasMOLDENGV,
+                'fchk': molpy.MolcasFCHK,
+                }
+            f = FileFormat[args.wfaorbs](outpath, 'w')
+            try:
+                f.write(wfn)
+            except molpy.DataNotAvailable as e:
+                print(e)
+                sys.exit(1)
+            f.close()
 
     if args.symmetrize:
         wfn = wfn.symmetrize()

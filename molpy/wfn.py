@@ -437,35 +437,30 @@ class Wavefunction():
                 offset += n_orb
         return orbitals
 
-    def read_orb_desym(self, filename, orbtype='MO'):
+    def read_wfaorbs(self, filename):
         """
-        Read a desymmetrized set of orbitals from the HDF5 file.
+        Read orbitals created by the WFA module from the HDF5 file.
         """
+        wfaorbs = {}
+
         f = MolcasHDF5(filename, 'r')
+        for data in f.h5f['WFA']:
+            if 'VECTORS' in data:
+                orbtype = data[:data.index('_VECTORS')]
 
-        if self.unrestricted:
-            kinds = ['alpha', 'beta']
-        else:
-            kinds = ['restricted']
+                n_bas_t = sum(bas for bas in self.n_bas)
 
-        n_bas_t = sum(bas for bas in self.n_bas)
-        for kind in kinds:
-            mo_occupations = f.mo_occupations(kind=kind, orbtype="WFA/DESYM_" + orbtype)
-            mo_energies = f.mo_energies(kind=kind, orbtype="WFA/DESYM_" + orbtype)
+                mo_occupations = f.mo_occupations(kind='restricted', orbtype="WFA/" + orbtype)
+                mo_energies = f.mo_energies(kind='restricted', orbtype="WFA/" + orbtype)
+                C_mat = f.mo_vectors(kind='restricted', orbtype="WFA/" + orbtype)
 
-            C_mat = f.mo_vectors(kind=kind, orbtype="WFA/DESYM_" + orbtype)
-            if np.isnan(C_mat[0]):
-                raise Exception("""
-    Data set %s,
-    for kind %s
-    could not be read!
-    """%("WFA/DESYM_" + orbtype, kind))
-            assert len(C_mat)%n_bas_t == 0, "Inconsistent MO-coefficients"
+                assert len(C_mat)%n_bas_t == 0, "Inconsistent MO-coefficients"
 
-            self.mo[kind] = OrbitalSet(C_mat.reshape((n_bas_t, len(C_mat)//n_bas_t), order='F'),
-                                  energies=mo_energies,
-                                  occupations=mo_occupations,
-                                  basis_set=self.basis_set)
+                otout = orbtype.replace('DESYM_', '').replace('(','-').replace(')','-')
+                wfaorbs[otout] = OrbitalSet(C_mat.reshape((n_bas_t, len(C_mat)//n_bas_t), order='F'),
+                    energies=mo_energies, occupations=mo_occupations, basis_set=self.basis_set)
+
+        return wfaorbs
 
     @staticmethod
     def _print_mo_header(kind=None, width=128, delim='*'):
