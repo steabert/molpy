@@ -34,13 +34,15 @@ class BasisSet():
     and contains a array of contracted and primitive basis function IDs.
     """
     def __init__(self, center_labels, center_charges, center_coordinates,
-                 contracted_ids, primitive_ids, primitives):
+                 contracted_ids, primitive_ids, primitives, overlap, fockint):
         self.center_labels = np.asarray(center_labels)
         self.center_charges = np.asarray(center_charges)
         self.center_coordinates = np.asarray(center_coordinates)
         self.contracted_ids = contracted_ids
         self.primitive_ids = primitive_ids
         self.primitives = primitives
+        self.overlap = overlap
+        self.fockint = fockint
 
         if self.contracted_ids is not None:
             center_ids = sorted(set((id[0] for id in self.contracted_ids)))
@@ -111,9 +113,13 @@ class BasisSet():
             self.contracted_ids.copy(),
             self.primitive_ids.copy(),
             self.primitives.copy(),
+            self.overlap.copy(),
+            self.fockint.copy(),
             )
 
     def __getitem__(self, index):
+        cols = np.array([index])
+        rows = cols.T
         return BasisSet(
             self.center_labels.copy(),
             self.center_charges.copy(),
@@ -121,6 +127,8 @@ class BasisSet():
             self.contracted_ids[index],
             self.primitive_ids.copy(),
             self.primitives.copy(),
+            self.overlap[rows,cols],
+            self.fockint[rows,cols],
             )
 
     def __str__(self):

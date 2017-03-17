@@ -51,7 +51,7 @@ class OrbitalSet():
     Represents a set of orbitals with a common basis set, and keeps track of
     their properties (energy, occupation, type, irrep).
     """
-    def __init__(self, coefficients, ids=None, types=None,
+    def __init__(self, coefficients, ids=None, pos=None, types=None,
                  irreps=None, energies=None, occupations=None,
                  basis_ids=None, basis_set=None):
 
@@ -69,9 +69,14 @@ class OrbitalSet():
         self.n_irreps = len(np.unique(irreps))
 
         if ids is None:
-            self.ids = 1 + np.arange(self.n_orb)
+            self.ids = np.arange(self.n_orb)
         else:
             self.ids = ids
+
+        if pos is None:
+            self.pos = 1 + np.arange(self.n_orb)
+        else:
+            self.pos = pos
 
         if types is None:
             self.types = np.array(['-'] * self.n_bas)
@@ -99,6 +104,7 @@ class OrbitalSet():
         return self.__class__(
             self.coefficients.copy(),
             ids=self.ids.copy(),
+            pos=self.pos.copy(),
             types=self.types.copy(),
             irreps=self.irreps.copy(),
             energies=self.energies.copy(),
@@ -111,6 +117,7 @@ class OrbitalSet():
         return self.__class__(
             self.coefficients[:,index],
             ids=self.ids[index],
+            pos=self.pos[index],
             types=self.types[index],
             irreps=self.irreps[index],
             energies=self.energies[index],
@@ -123,6 +130,7 @@ class OrbitalSet():
         return self.__class__(
             self.coefficients[index,:],
             ids=self.ids.copy(),
+            pos=self.pos.copy(),
             types=self.types.copy(),
             irreps=self.irreps.copy(),
             energies=self.energies.copy(),
@@ -153,12 +161,16 @@ class OrbitalSet():
             return self
 
         rows = np.logical_or.reduce(abs(self.coefficients) > threshold, axis=1)
-        return self.filter_basis(rows)
+        cols = np.logical_or.reduce(abs(self.coefficients) > threshold, axis=0)
+        return self.filter_basis(rows)[cols]
 
     def __str__(self):
         """
         returns the Orbital coefficients formatted as columns
         """
+
+        if self.n_bas == 0:
+            return ''
 
         prefix = '{:16s}'
         int_template = prefix + self.n_orb * '{:10d}'
@@ -167,14 +179,18 @@ class OrbitalSet():
 
         lines = []
 
-        line = int_template.format("ID", *self.ids)
+        line = int_template.format("Orbital", *self.pos)
         lines.append(line)
 
         line = str_template.format('', *(['------'] * self.n_orb))
         lines.append(line)
 
-        line = int_template.format("irrep", *self.irreps)
+        line = int_template.format("MO Index", *self.ids)
         lines.append(line)
+
+        if len(np.unique(self.irreps)) > 1:
+            line = int_template.format("Irrep", *self.irreps)
+            lines.append(line)
 
         line = float_template.format('Occupation', *self.occupations)
         lines.append(line)
@@ -197,6 +213,7 @@ class OrbitalSet():
             lines.append(line)
 
         lines.append('')
+        lines.append('')
 
         return '\n'.join(lines)
 
@@ -208,9 +225,10 @@ class OrbitalSet():
         if self.n_orb == 0:
             print('no orbitals to show... perhaps you filtered too strictly?')
 
-        for offset in range(0, self.n_orb, cols):
-            orbitals = self[offset:offset+cols].collapse(threshold=threshold)
-            print(orbitals)
+        orbitals = self.collapse(threshold=threshold)
+
+        for offset in range(0, orbitals.n_orb, cols):
+            print(orbitals[offset:offset+cols], end='')
 
     def show_by_irrep(self, cols=10, threshold=None):
 
@@ -218,8 +236,9 @@ class OrbitalSet():
             for irrep in np.unique(self.irreps):
                 print('symmetry {:d}'.format(irrep+1))
                 print()
-                indices, = np.where(self.irreps == irrep)
-                self[indices].sorted(reindex=True).show(cols=cols, threshold=threshold)
+                mo_set, = np.where(self.irreps == irrep)
+                orbitals = self[mo_set].sorted(reindex=True)
+                orbitals.show(cols=cols, threshold=threshold)
         else:
             self.show(cols=cols, threshold=threshold)
 
@@ -253,13 +272,14 @@ class OrbitalSet():
         index = np.lexsort((self.energies, -self.occupations))
 
         if reindex:
-            ids = None
+            pos = None
         else:
-            ids = self.ids[index]
+            pos = self.pos[index]
 
         return self.__class__(
             self.coefficients[:,index],
-            ids=ids,
+            ids=self.ids[index],
+            pos=pos,
             types=self.types[index],
             irreps=self.irreps[index],
             energies=self.energies[index],
@@ -309,3 +329,16 @@ class OrbitalSet():
 
         selection = np.where(self.types == '-')
         self.types[selection] = 's'
+
+    def gpop(self):
+        """
+        Replace the coefficients of the orbitals with their AO weights, effectively
+        replacing the matrix C with C x SC.
+        """
+        orbitals = self.copy()
+        cols = np.array([orbitals.basis_ids])
+        rows = cols.T
+        S_mat = orbitals.basis_set.overlap[rows,cols]
+        C_mat = orbitals.coefficients
+        orbitals.coefficients = np.multiply(C_mat,np.dot(S_mat,C_mat))
+        return orbitals

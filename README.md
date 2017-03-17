@@ -29,7 +29,7 @@ penny <filename>.h5 -c fchk
 ```
 
 ## Installation
-Make sure your are using Python 3!
+Make sure your are using Python 3 (at least version 3.5)!
 
 Molpy can be installed directly from PyPI, using:
 ```
