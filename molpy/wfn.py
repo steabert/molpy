@@ -449,16 +449,16 @@ class Wavefunction():
 
         n_bas_t = sum(bas for bas in self.n_bas)
         for kind in kinds:
-            mo_occupations = f.mo_occupations(kind=kind, orbtype="DESYM_" + orbtype)
-            mo_energies = f.mo_energies(kind=kind, orbtype="DESYM_" + orbtype)
+            mo_occupations = f.mo_occupations(kind=kind, orbtype="WFA/DESYM_" + orbtype)
+            mo_energies = f.mo_energies(kind=kind, orbtype="WFA/DESYM_" + orbtype)
 
-            C_mat = f.mo_vectors(kind=kind, orbtype="DESYM_" + orbtype)
+            C_mat = f.mo_vectors(kind=kind, orbtype="WFA/DESYM_" + orbtype)
             if np.isnan(C_mat[0]):
                 raise Exception("""
     Data set %s,
     for kind %s
     could not be read!
-    """%("DESYM_" + orbtype, kind))
+    """%("WFA/DESYM_" + orbtype, kind))
             assert len(C_mat)%n_bas_t == 0, "Inconsistent MO-coefficients"
 
             self.mo[kind] = OrbitalSet(C_mat.reshape((n_bas_t, len(C_mat)//n_bas_t), order='F'),
