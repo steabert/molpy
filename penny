@@ -385,7 +385,7 @@ def driver():
         print(header.format('center','x','y','z','charge'))
         print(header.format('------','-','-','-','------'))
         for center, coord, charge in zip(labels, coords, charges):
-            print(body.format(center, *coord, charge))
+            print(body.format(center, coord[0], coord[1], coord[2], charge))
 
 if __name__ == '__main__':
     driver()
