@@ -96,10 +96,17 @@ def argument_parser():
         )
 
     parser.add_argument(
+        '--wfaorbs',
+        type=str,
+        choices=('fchk', 'molden', 'moldengv'),
+        help='Convert orbitals created by the WFA module to the specified format'
+    )
+
+    parser.add_argument(
         '-r',
         '--root',
         type=int,
-        help='limit operations to a spicifc root (e.g. with --natorb)'
+        help='limit operations to a specifc root (e.g. with --natorb)'
         )
 
     parser.add_argument(
@@ -286,6 +293,27 @@ def driver():
         else:
             wfn.mo['restricted'] = wfn.spinnatorb()
 
+    if args.wfaorbs:
+        print("Reading WFA orbitals")
+        wfaorbs = wfn.read_wfaorbs(filename=args.infile)
+        for orbtype, orbs in wfaorbs.items():
+            wfn.mo['restricted'] = orbs
+
+            outpath = '.'.join((base, orbtype, args.wfaorbs))
+            print("Writing %s ..."%outpath)
+            FileFormat = {
+                'molden': molpy.MolcasMOLDEN,
+                'moldengv': molpy.MolcasMOLDENGV,
+                'fchk': molpy.MolcasFCHK,
+                }
+            f = FileFormat[args.wfaorbs](outpath, 'w')
+            try:
+                f.write(wfn)
+            except molpy.DataNotAvailable as e:
+                print(e)
+                sys.exit(1)
+            f.close()
+
     if args.symmetrize:
         wfn = wfn.symmetrize()
 
@@ -357,7 +385,7 @@ def driver():
         print(header.format('center','x','y','z','charge'))
         print(header.format('------','-','-','-','------'))
         for center, coord, charge in zip(labels, coords, charges):
-            print(body.format(center, *coord, charge))
+            print(body.format(center, coord[0], coord[1], coord[2], charge))
 
 if __name__ == '__main__':
     driver()

@@ -437,6 +437,31 @@ class Wavefunction():
                 offset += n_orb
         return orbitals
 
+    def read_wfaorbs(self, filename):
+        """
+        Read orbitals created by the WFA module from the HDF5 file.
+        """
+        wfaorbs = {}
+
+        f = MolcasHDF5(filename, 'r')
+        for data in f.h5f['WFA']:
+            if 'VECTORS' in data:
+                orbtype = data[:data.index('_VECTORS')]
+
+                n_bas_t = sum(bas for bas in self.n_bas)
+
+                mo_occupations = f.mo_occupations(kind='restricted', orbtype="WFA/" + orbtype)
+                mo_energies = f.mo_energies(kind='restricted', orbtype="WFA/" + orbtype)
+                C_mat = f.mo_vectors(kind='restricted', orbtype="WFA/" + orbtype)
+
+                assert len(C_mat)%n_bas_t == 0, "Inconsistent MO-coefficients"
+
+                otout = orbtype.replace('DESYM_', '').replace('(','-').replace(')','-')
+                wfaorbs[otout] = OrbitalSet(C_mat.reshape((n_bas_t, len(C_mat)//n_bas_t), order='F'),
+                    energies=mo_energies, occupations=mo_occupations, basis_set=self.basis_set)
+
+        return wfaorbs
+
     @staticmethod
     def _print_mo_header(kind=None, width=128, delim='*'):
         if kind is not None:

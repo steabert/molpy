@@ -161,7 +161,7 @@ class MolcasHDF5:
         return is_unrestricted
 
 
-    def _get_mo_attribute(self, attribute, kind='restricted'):
+    def _get_mo_attribute(self, attribute, kind='restricted', orbtype='MO'):
         """
         Converts an MO attribute to an attribute with a specific kind.
         If a certain kind conflicts with the wavefunction type, an
@@ -173,7 +173,7 @@ class MolcasHDF5:
         elif kind != 'restricted' and not self.unrestricted():
             raise InvalidRequest('RHF wavefunction has no alpha/beta orbitals')
 
-        attribute_prefix = 'MO_'
+        attribute_prefix = orbtype + '_'
         if kind == 'alpha':
             attribute_prefix += 'ALPHA_'
         elif kind == 'beta':
@@ -181,9 +181,9 @@ class MolcasHDF5:
 
         return attribute_prefix + attribute
 
-    def mo_typeindices(self, kind='restricted'):
+    def mo_typeindices(self, kind='restricted', orbtype='MO'):
 
-        attribute = self._get_mo_attribute('TYPEINDICES', kind=kind)
+        attribute = self._get_mo_attribute('TYPEINDICES', kind=kind, orbtype=orbtype)
         try:
             data_bytes = np.asarray(self.maybe_fetch_dset(attribute), dtype='U')
             typeindices = np.char.lower(data_bytes)
@@ -191,9 +191,9 @@ class MolcasHDF5:
             typeindices = np.array(['-'] * sum(self.n_bas), dtype='U')
         return typeindices
 
-    def mo_occupations(self, kind='restricted'):
+    def mo_occupations(self, kind='restricted', orbtype='MO'):
 
-        attribute = self._get_mo_attribute('OCCUPATIONS', kind=kind)
+        attribute = self._get_mo_attribute('OCCUPATIONS', kind=kind, orbtype=orbtype)
         try:
             occupations = np.asarray(self.maybe_fetch_dset(attribute))
         except DataNotAvailable:
@@ -201,9 +201,9 @@ class MolcasHDF5:
             occupations.fill(np.nan)
         return occupations
 
-    def mo_energies(self, kind='restricted'):
+    def mo_energies(self, kind='restricted', orbtype='MO'):
 
-        attribute = self._get_mo_attribute('ENERGIES', kind=kind)
+        attribute = self._get_mo_attribute('ENERGIES', kind=kind, orbtype=orbtype)
         try:
             energies = np.asarray(self.maybe_fetch_dset(attribute))
         except DataNotAvailable:
@@ -211,9 +211,9 @@ class MolcasHDF5:
             energies.fill(np.nan)
         return energies
 
-    def mo_vectors(self, kind='restricted'):
+    def mo_vectors(self, kind='restricted', orbtype='MO'):
 
-        attribute = self._get_mo_attribute('VECTORS', kind=kind)
+        attribute = self._get_mo_attribute('VECTORS', kind=kind, orbtype=orbtype)
         try:
             vectors = np.asarray(self.maybe_fetch_dset(attribute))
         except DataNotAvailable:
