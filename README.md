@@ -1,3 +1,5 @@
+This project is no longer maintained. Check https://github.com/felixplasser/molpy instead.
+
 # Welcome to Molpy!
 Molpy is a python3 library to make it easy to display [Molcas](http://www.molcas.org)
 wavefunction data, compute properties, and convert to other formats.
